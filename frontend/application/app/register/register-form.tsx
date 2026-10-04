@@ -14,32 +14,43 @@ export default function RegisterForm() {
   const [altEmail, setAltEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
-
+const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   const router = useRouter();
-
+   const passwordConfirmationState =
+  confirmPassword.length === 0
+    ? "empty"
+    : password === confirmPassword
+      ? "match"
+      : "mismatch";
   async function handleSubmit(
-    event: FormEvent<HTMLFormElement>,
-  ) {
-    event.preventDefault();
+  event: FormEvent<HTMLFormElement>,
+) {
+  event.preventDefault();
 
-    setError("");
-    setLoading(true);
+  setError("");
+  setLoading(true);
 
-    try {
-      await api.post("/auth/register", {
-        firstName: firstName.trim(),
-        lastName: lastName.trim(),
-        username: username.trim(),
-        email: email.trim(),
-        altEmail: altEmail.trim(),
-        phone: phone.trim(),
-        password,
-      });
+  if (password !== confirmPassword) {
+    setError("Passwords do not match");
+    setLoading(false);
+    return;
+  }
 
-      router.push("/login");
+  try {
+    await api.post("/auth/register", {
+      firstName: firstName.trim(),
+      lastName: lastName.trim(),
+      username: username.trim(),
+      email: email.trim(),
+      altEmail: altEmail.trim(),
+      phone: phone.trim(),
+      password,
+    });
+
+    router.push("/login");
     } catch (error) {
       if (axios.isAxiosError(error)) {
         setError(
@@ -76,49 +87,53 @@ export default function RegisterForm() {
           className="flex flex-col gap-5"
         >
           <div className="grid gap-5 sm:grid-cols-2">
-            <Field
-              id="firstName"
-              label="First name"
-              value={firstName}
-              onChange={setFirstName}
-              autoComplete="given-name"
-            />
+           <Field
+  id="firstName"
+  label="First name"
+  value={firstName}
+  onChange={setFirstName}
+  autoComplete="given-name"
+  required
+/>
 
             <Field
-              id="lastName"
-              label="Last name"
-              value={lastName}
-              onChange={setLastName}
-              autoComplete="family-name"
-            />
+  id="lastName"
+  label="Last name"
+  value={lastName}
+  onChange={setLastName}
+  autoComplete="family-name"
+  required
+/>
           </div>
 
           <Field
-            id="username"
-            label="Username"
-            value={username}
-            onChange={setUsername}
-            autoComplete="username"
-          />
+  id="username"
+  label="Username"
+  value={username}
+  onChange={setUsername}
+  autoComplete="username"
+  required
+/>
 
           <div className="grid gap-5 sm:grid-cols-2">
-            <Field
-              id="email"
-              label="Email"
-              type="email"
-              value={email}
-              onChange={setEmail}
-              autoComplete="email"
-            />
+           <Field
+  id="email"
+  label="Email"
+  type="email"
+  value={email}
+  onChange={setEmail}
+  autoComplete="email"
+  required
+/>
 
             <Field
-              id="altEmail"
-              label="Alternative email"
-              type="email"
-              value={altEmail}
-              onChange={setAltEmail}
-              autoComplete="email"
-            />
+  id="altEmail"
+  label="Alternative email"
+  type="email"
+  value={altEmail}
+  onChange={setAltEmail}
+  autoComplete="email"
+/>
           </div>
 
           <Field
@@ -128,17 +143,29 @@ export default function RegisterForm() {
             value={phone}
             onChange={setPhone}
             autoComplete="tel"
+             required
           />
 
-          <Field
-            id="password"
-            label="Password"
-            type="password"
-            value={password}
-            onChange={setPassword}
-            autoComplete="new-password"
-          />
+<Field
+  id="password"
+  label="Password"
+  type="password"
+  value={password}
+  onChange={setPassword}
+  autoComplete="new-password"
+  required
+/>
 
+<Field
+  id="confirmPassword"
+  label="Confirm password"
+  type="password"
+  value={confirmPassword}
+  onChange={setConfirmPassword}
+  autoComplete="new-password"
+  required
+  passwordMatchState={passwordConfirmationState}
+/>
           {error && (
             <div
               role="alert"
@@ -179,6 +206,8 @@ type FieldProps = {
   value: string;
   onChange: (value: string) => void;
   autoComplete?: string;
+  required?: boolean;
+  passwordMatchState?: "empty" | "match" | "mismatch";
 };
 
 function Field({
@@ -188,7 +217,12 @@ function Field({
   value,
   onChange,
   autoComplete,
+  required = false,
+  passwordMatchState = "empty",
 }: FieldProps) {
+  const isMatch = passwordMatchState === "match";
+  const isMismatch = passwordMatchState === "mismatch";
+
   return (
     <div className="flex flex-col gap-2">
       <label
@@ -196,20 +230,55 @@ function Field({
         className="text-sm font-medium"
       >
         {label}
+
+        {required && (
+          <span
+            className="ml-1 text-zinc-500"
+            aria-hidden="true"
+          >
+            *
+          </span>
+        )}
       </label>
 
-      <input
-        id={id}
-        name={id}
-        type={type}
-        value={value}
-        onChange={(event) =>
-          onChange(event.target.value)
-        }
-        autoComplete={autoComplete}
-        required={id !== "altEmail"}
-        className="h-12 rounded-xl border border-white/80 bg-white/60 px-4 text-sm shadow-[0_4px_14px_rgba(31,38,135,0.08),inset_0_1px_0_rgba(255,255,255,0.9)] outline-none backdrop-blur-xl transition placeholder:text-zinc-400 hover:bg-white/65 focus:border-white focus:bg-white/75 focus:shadow-[0_6px_18px_rgba(31,38,135,0.12),inset_0_1px_0_rgba(255,255,255,0.95)] focus:ring-2 focus:ring-white/60"
-      />
+      <div className="relative">
+        <input
+          id={id}
+          name={id}
+          type={type}
+          value={value}
+          onChange={(event) =>
+            onChange(event.target.value)
+          }
+          autoComplete={autoComplete}
+          required={required}
+          className={`h-12 w-full rounded-xl border px-4 pr-11 text-sm outline-none backdrop-blur-xl transition ${
+            isMatch
+              ? "border-emerald-300/80 bg-emerald-50/55 shadow-[0_4px_14px_rgba(16,185,129,0.10),inset_0_1px_0_rgba(255,255,255,0.9)] focus:border-emerald-400 focus:bg-emerald-50/70 focus:ring-2 focus:ring-emerald-200/60"
+              : isMismatch
+                ? "border-red-300/80 bg-red-50/55 shadow-[0_4px_14px_rgba(239,68,68,0.10),inset_0_1px_0_rgba(255,255,255,0.9)] focus:border-red-400 focus:bg-red-50/70 focus:ring-2 focus:ring-red-200/60"
+                : "border-white/80 bg-white/60 shadow-[0_4px_14px_rgba(31,38,135,0.08),inset_0_1px_0_rgba(255,255,255,0.9)] hover:bg-white/65 focus:border-white focus:bg-white/75 focus:shadow-[0_6px_18px_rgba(31,38,135,0.12),inset_0_1px_0_rgba(255,255,255,0.95)] focus:ring-2 focus:ring-white/60"
+          }`}
+        />
+
+        {isMatch && (
+          <span
+            className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-emerald-600"
+            aria-hidden="true"
+          >
+            ✓
+          </span>
+        )}
+
+        {isMismatch && (
+          <span
+            className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-red-500"
+            aria-hidden="true"
+          >
+            ×
+          </span>
+        )}
+      </div>
     </div>
   );
 }
