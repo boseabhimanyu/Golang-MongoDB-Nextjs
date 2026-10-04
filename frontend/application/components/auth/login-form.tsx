@@ -142,6 +142,19 @@ export default function LoginForm({
             {loading ? "Signing in..." : "Sign in"}
           </button>
         </form>
+
+        <p className="mt-6 text-center text-sm text-zinc-600">
+  Don't have an account?{" "}
+  <button
+    type="button"
+    onClick={() => {
+      window.location.href = "/register";
+    }}
+    className="font-medium text-zinc-900 underline underline-offset-4"
+  >
+    Create an account
+  </button>
+</p>
       </div>
     </div>
   );
