@@ -1,0 +1,22 @@
+export type User = {
+  id: string;
+  firstName: string;
+  lastName: string;
+  username: string;
+  email: string;
+  altEmail: string;
+  phone: string;
+  role: string;
+  profilePic: string;
+  status: boolean;
+  createdAt: string;
+  updatedAt: string;
+  lastLoginAt: string;
+  dateOfBirth: string | null;
+  addressLine1: string;
+  addressLine2: string;
+  city: string;
+  state: string;
+  pinCode: string;
+  twoFactorEnabled: boolean;
+};

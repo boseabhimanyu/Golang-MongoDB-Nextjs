@@ -7,7 +7,13 @@ import { useRouter } from "next/navigation";
 import api from "@/lib/api";
 import TwoFactorForm from "./two-factor-form";
 
-export default function LoginForm() {
+interface LoginFormProps {
+  loginHint: string;
+}
+
+export default function LoginForm({
+  loginHint,
+}: LoginFormProps) {
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [challengeToken, setChallengeToken] = useState("");
@@ -44,7 +50,7 @@ export default function LoginForm() {
 
       console.log("Login successful");
 
-      router.push("/dashboard");
+  window.location.href = "/dashboard";
     } catch (error) {
       if (axios.isAxiosError(error)) {
         setError(
@@ -83,7 +89,7 @@ export default function LoginForm() {
         >
           <div className="flex flex-col gap-2">
             <label htmlFor="identifier">
-              Email or username
+            {loginHint}
             </label>
 
             <input

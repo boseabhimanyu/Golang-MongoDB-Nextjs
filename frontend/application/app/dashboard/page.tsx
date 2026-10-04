@@ -1,13 +1,17 @@
+import LogoutButton from "@/components/auth/logout-button";
+
 export default function DashboardPage() {
   return (
-    <main className="min-h-screen p-6">
-      <h1 className="text-2xl font-semibold">
-        Dashboard
-      </h1>
+    <main className="min-h-screen p-8">
+      <h1>Dashboard</h1>
 
-      <p className="mt-2 text-sm text-zinc-600">
-        You are signed in.
+      <p className="mt-2">
+        Authentication successful.
       </p>
+
+      <div className="mt-6">
+        <LogoutButton />
+      </div>
     </main>
   );
 }
