@@ -28,18 +28,10 @@ export default function TwoFactorForm({
     setLoading(true);
 
     try {
-      const response = await api.post(
-        "/auth/2fa/verify-login",
-        {
-          challengeToken,
-          code: code.trim(),
-        },
-      );
-
-      console.log(
-        "2FA LOGIN RESPONSE:",
-        response.data,
-      );
+      await api.post("/auth/2fa/verify-login", {
+        challengeToken,
+        code: code.trim(),
+      });
 
       router.push("/dashboard");
     } catch (error) {
@@ -57,50 +49,60 @@ export default function TwoFactorForm({
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-4">
-      <div className="w-full max-w-md">
-        <h1 className="mb-2 text-3xl font-semibold">
-          Two-factor authentication
-        </h1>
+    <div className="flex min-h-screen items-center justify-center px-4 py-10 sm:px-6">
+      <div className="glass w-full max-w-md rounded-3xl p-6 sm:p-8">
+        <div className="mb-8">
+          <div className="mb-6 flex h-11 w-11 items-center justify-center rounded-2xl bg-black text-sm font-semibold text-white shadow-lg">
+            A
+          </div>
 
-        <p className="mb-8 text-sm text-zinc-600">
-          Enter the code from your authenticator
-          app or use a backup code.
-        </p>
+          <h1 className="text-3xl font-semibold tracking-tight">
+            Two-factor authentication
+          </h1>
+
+          <p className="mt-2 text-sm leading-6 text-zinc-600">
+            Enter the code from your authenticator
+            app or use a backup code.
+          </p>
+        </div>
 
         <form
           onSubmit={handleSubmit}
           className="flex flex-col gap-5"
         >
           <div className="flex flex-col gap-2">
-            <label htmlFor="code">
+            <label
+              htmlFor="code"
+              className="text-sm font-medium"
+            >
               Authentication code
             </label>
 
             <input
-              id="code"
-              type="text"
-              value={code}
-              onChange={(event) =>
-                setCode(event.target.value)
-              }
-              autoComplete="one-time-code"
-              autoFocus
-              required
-              className="h-12 rounded-xl border border-zinc-200 px-4 outline-none focus:border-zinc-400"
-            />
+            id="code"
+            type="text"
+            inputMode="numeric"
+            value={code}
+            onChange={(event) =>
+              setCode(event.target.value)
+            }
+            autoComplete="one-time-code"
+            autoFocus
+            required
+            className="h-12 rounded-xl border border-white/80 bg-white/60 px-4 text-center text-lg tracking-[0.3em] shadow-[0_4px_14px_rgba(31,38,135,0.08),inset_0_1px_0_rgba(255,255,255,0.9)] outline-none backdrop-blur-xl transition hover:bg-white/65 focus:border-white focus:bg-white/75 focus:shadow-[0_6px_18px_rgba(31,38,135,0.12),inset_0_1px_0_rgba(255,255,255,0.95)] focus:ring-2 focus:ring-white/60"
+          />
           </div>
 
           {error && (
-            <p className="text-sm text-red-600">
+            <div className="rounded-xl border border-red-200/70 bg-red-50/60 px-4 py-3 text-sm text-red-700 backdrop-blur-xl">
               {error}
-            </p>
+            </div>
           )}
 
           <button
             type="submit"
             disabled={loading}
-            className="h-12 rounded-xl bg-black px-5 font-medium text-white transition-opacity disabled:cursor-not-allowed disabled:opacity-50"
+            className="h-12 rounded-xl bg-black px-5 text-sm font-medium text-white shadow-lg shadow-black/10 transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {loading ? "Verifying..." : "Verify"}
           </button>

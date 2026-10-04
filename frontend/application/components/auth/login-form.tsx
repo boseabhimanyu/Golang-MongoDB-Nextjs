@@ -2,7 +2,7 @@
 
 import axios from "axios";
 import { FormEvent, useState } from "react";
-import { useRouter } from "next/navigation";
+
 
 import api from "@/lib/api";
 import TwoFactorForm from "./two-factor-form";
@@ -20,7 +20,7 @@ export default function LoginForm({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const router = useRouter();
+
 
   async function handleSubmit(
     event: FormEvent<HTMLFormElement>,
@@ -38,19 +38,12 @@ export default function LoginForm({
 
       const data = response.data;
 
-      console.log("LOGIN RESPONSE:", data);
-
       if (data.twoFactorRequired === true) {
-        console.log("2FA required");
-
         setChallengeToken(data.challengeToken);
-
         return;
       }
 
-      console.log("Login successful");
-
-  window.location.href = "/dashboard";
+      window.location.href = "/dashboard";
     } catch (error) {
       if (axios.isAxiosError(error)) {
         setError(
@@ -73,23 +66,32 @@ export default function LoginForm({
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-4">
-      <div className="w-full max-w-md">
-        <h1 className="mb-2 text-3xl font-semibold">
-          Sign in
-        </h1>
+    <div className="flex min-h-screen items-center justify-center px-4 py-10 sm:px-6">
+      <div className="glass w-full max-w-md rounded-3xl p-6 sm:p-8">
+        <div className="mb-8">
+          <div className="mb-6 flex h-11 w-11 items-center justify-center rounded-2xl bg-black text-sm font-semibold text-white shadow-lg">
+            A
+          </div>
 
-        <p className="mb-8 text-sm text-zinc-600">
-          Sign in to your account
-        </p>
+          <h1 className="text-3xl font-semibold tracking-tight">
+            Sign in
+          </h1>
+
+          <p className="mt-2 text-sm text-zinc-600">
+            Sign in to your account
+          </p>
+        </div>
 
         <form
           onSubmit={handleSubmit}
           className="flex flex-col gap-5"
         >
           <div className="flex flex-col gap-2">
-            <label htmlFor="identifier">
-            {loginHint}
+            <label
+              htmlFor="identifier"
+              className="text-sm font-medium"
+            >
+              {loginHint}
             </label>
 
             <input
@@ -101,12 +103,15 @@ export default function LoginForm({
               }
               autoComplete="username"
               required
-              className="h-12 rounded-xl border border-zinc-200 px-4 outline-none focus:border-zinc-400"
+              className="h-12 rounded-xl border border-white/80 bg-white/60 px-4 text-sm shadow-[0_4px_14px_rgba(31,38,135,0.08),inset_0_1px_0_rgba(255,255,255,0.9)] outline-none backdrop-blur-xl transition placeholder:text-zinc-400 hover:bg-white/65 focus:border-white focus:bg-white/75 focus:shadow-[0_6px_18px_rgba(31,38,135,0.12),inset_0_1px_0_rgba(255,255,255,0.95)] focus:ring-2 focus:ring-white/60"
             />
           </div>
 
           <div className="flex flex-col gap-2">
-            <label htmlFor="password">
+            <label
+              htmlFor="password"
+              className="text-sm font-medium"
+            >
               Password
             </label>
 
@@ -119,20 +124,20 @@ export default function LoginForm({
               }
               autoComplete="current-password"
               required
-              className="h-12 rounded-xl border border-zinc-200 px-4 outline-none focus:border-zinc-400"
+              className="h-12 rounded-xl border border-white/80 bg-white/60 px-4 text-sm shadow-[0_4px_14px_rgba(31,38,135,0.08),inset_0_1px_0_rgba(255,255,255,0.9)] outline-none backdrop-blur-xl transition placeholder:text-zinc-400 hover:bg-white/65 focus:border-white focus:bg-white/75 focus:shadow-[0_6px_18px_rgba(31,38,135,0.12),inset_0_1px_0_rgba(255,255,255,0.95)] focus:ring-2 focus:ring-white/60"
             />
           </div>
 
           {error && (
-            <p className="text-sm text-red-600">
+            <div className="rounded-xl border border-red-200/70 bg-red-50/60 px-4 py-3 text-sm text-red-700 backdrop-blur-xl">
               {error}
-            </p>
+            </div>
           )}
 
           <button
             type="submit"
             disabled={loading}
-            className="h-12 rounded-xl bg-black px-5 font-medium text-white transition-opacity disabled:cursor-not-allowed disabled:opacity-50"
+            className="h-12 rounded-xl bg-black px-5 text-sm font-medium text-white shadow-lg shadow-black/10 transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {loading ? "Signing in..." : "Sign in"}
           </button>

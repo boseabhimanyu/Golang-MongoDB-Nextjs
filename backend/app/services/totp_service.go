@@ -2,6 +2,7 @@ package services
 
 import (
 	"basic-app/apperrors"
+	"log"
 	"strings"
 	"time"
 
@@ -64,6 +65,15 @@ func (s *TOTPService) VerifyCode(
 			Digits:    otp.DigitsSix,
 			Algorithm: otp.AlgorithmSHA1,
 		},
+	)
+
+	// Below log.Printf has to be deleted once topt error is solved.
+	log.Printf(
+		"TOTP validation: unix=%d second=%d valid=%t err=%v",
+		time.Now().UTC().Unix(),
+		time.Now().UTC().Second(),
+		valid,
+		err,
 	)
 
 	// 	| Skew | Accepted windows | Approx. tolerance |
