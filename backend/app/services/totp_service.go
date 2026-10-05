@@ -55,34 +55,45 @@ func (s *TOTPService) VerifyCode(
 		return apperrors.ErrInvalidTOTPCode
 	}
 
+	// Below log.Printf has to be deleted/changed once topt error is solved.
+	opts := totp.ValidateOpts{
+		Period:    30,
+		Skew:      1,
+		Digits:    otp.DigitsSix,
+		Algorithm: otp.AlgorithmSHA1,
+	}
+
+	expectedCode, err := totp.GenerateCodeCustom(
+		secret,
+		time.Now().UTC(),
+		opts,
+	)
+	if err != nil {
+		return err
+	}
+
 	valid, err := totp.ValidateCustom(
 		code,
 		secret,
 		time.Now().UTC(),
-		totp.ValidateOpts{
-			Period:    30,
-			Skew:      1,
-			Digits:    otp.DigitsSix,
-			Algorithm: otp.AlgorithmSHA1,
-		},
+		opts,
 	)
-
 	// Below log.Printf has to be deleted once topt error is solved.
 	log.Printf(
-		"TOTP validation: unix=%d second=%d valid=%t err=%v",
+		"TOTP diagnostic: unix=%d second=%d supplied=%s expected=%s valid=%v err=%v",
 		time.Now().UTC().Unix(),
 		time.Now().UTC().Second(),
+		code,
+		expectedCode,
 		valid,
 		err,
 	)
-
 	// 	| Skew | Accepted windows | Approx. tolerance |
 	// |---:|---|---:|
 	// | `0` | Current window only | ~30 sec |
 	// | `1` | Previous + current + next | ~90 sec total |
 	// | `2` | 2 previous + current + 2 next | ~150 sec |
 	// | `3` | 3 previous + current + 3 next | ~210 sec |
-
 	if err != nil {
 		return err
 	}

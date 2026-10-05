@@ -1,0 +1,688 @@
+"use client";
+
+import axios from "axios";
+import QRCode from "qrcode";
+import {
+  ChangeEvent,
+  FormEvent,
+  useEffect,
+  useState,
+} from "react";
+
+import api from "@/lib/api";
+
+type SecurityFormProps = {
+  twoFactorEnabled: boolean;
+};
+
+type SetupResponse = {
+  message: string;
+  otpauthUrl: string;
+  secret: string;
+};
+
+type VerifySetupResponse = {
+  backupCodes: string[];
+  backupCodesLow: boolean;
+  backupCodesRemaining: number;
+  message: string;
+  twoFactorEnabled: boolean;
+};
+
+type DisableResponse = {
+  message: string;
+  twoFactorEnabled: boolean;
+};
+
+type PasswordResponse = {
+  message: string;
+};
+
+export default function SecurityForm({
+  twoFactorEnabled: initialTwoFactorEnabled,
+}: SecurityFormProps) {
+  const [twoFactorEnabled, setTwoFactorEnabled] =
+    useState(initialTwoFactorEnabled);
+
+  // Password
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] =
+    useState("");
+  const [passwordLoading, setPasswordLoading] =
+    useState(false);
+  const [passwordMessage, setPasswordMessage] =
+    useState("");
+
+  // 2FA setup
+  const [setupStarted, setSetupStarted] = useState(false);
+  const [otpauthUrl, setOtpauthUrl] = useState("");
+  const [secret, setSecret] = useState("");
+  const [qrCode, setQrCode] = useState("");
+  const [setupCode, setSetupCode] = useState("");
+  const [twoFactorLoading, setTwoFactorLoading] =
+    useState(false);
+  const [twoFactorMessage, setTwoFactorMessage] =
+    useState("");
+
+  // 2FA disable
+  const [disableMode, setDisableMode] = useState(false);
+  const [disableCode, setDisableCode] = useState("");
+
+  // Backup codes
+  const [backupCodes, setBackupCodes] = useState<string[]>(
+    [],
+  );
+  const [showBackupCodes, setShowBackupCodes] =
+    useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const passwordsMatch =
+    confirmPassword.length > 0 &&
+    newPassword === confirmPassword;
+  const [capsLockOn, setCapsLockOn] = useState(false);
+  useEffect(() => {
+    if (!otpauthUrl) {
+      setQrCode("");
+      return;
+    }
+
+    let cancelled = false;
+
+    QRCode.toDataURL(otpauthUrl, {
+      width: 240,
+      margin: 2,
+      errorCorrectionLevel: "M",
+    })
+      .then((url) => {
+        if (!cancelled) {
+          setQrCode(url);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setQrCode("");
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [otpauthUrl]);
+
+async function handlePasswordSubmit(
+  event: FormEvent<HTMLFormElement>,
+) {
+  event.preventDefault();
+
+  setPasswordMessage("");
+
+  if (newPassword !== confirmPassword) {
+    setPasswordMessage(
+      "New password and re-entered password do not match.",
+    );
+    return;
+  }
+
+  setPasswordLoading(true);
+
+  try {
+    const response = await api.patch(
+      "/auth/password",
+      {
+        currentPassword,
+        newPassword,
+      },
+    );
+
+    console.log("Password change response:", response.data);
+
+    setPasswordMessage(
+      response.data?.message ??
+        "Password changed successfully.",
+    );
+
+    setCurrentPassword("");
+    setNewPassword("");
+    setConfirmPassword("");
+  } catch (error) {
+    console.error("Password change failed:", error);
+
+    if (axios.isAxiosError(error)) {
+      console.error(
+        "Status:",
+        error.response?.status,
+      );
+
+      console.error(
+        "Response:",
+        error.response?.data,
+      );
+
+      const backendMessage =
+        error.response?.data?.message ??
+        error.response?.data?.error;
+
+      setPasswordMessage(
+        backendMessage ??
+          "Unable to change password.",
+      );
+    } else {
+      setPasswordMessage(
+        "Unable to connect to the server.",
+      );
+    }
+  } finally {
+    setPasswordLoading(false);
+  }
+}
+
+  async function startTwoFactorSetup() {
+    setTwoFactorMessage("");
+    setTwoFactorLoading(true);
+
+    try {
+      const response =
+        await api.post<SetupResponse>(
+          "/auth/2fa/setup",
+        );
+
+      setOtpauthUrl(response.data.otpauthUrl);
+      setSecret(response.data.secret);
+      setSetupStarted(true);
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        setTwoFactorMessage(
+          error.response?.data?.error ??
+            "Unable to start two-factor authentication.",
+        );
+      } else {
+        setTwoFactorMessage(
+          "Unable to connect to the server.",
+        );
+      }
+    } finally {
+      setTwoFactorLoading(false);
+    }
+  }
+
+  async function verifyTwoFactorSetup() {
+    setTwoFactorMessage("");
+    setTwoFactorLoading(true);
+
+    try {
+      const response =
+        await api.post<VerifySetupResponse>(
+          "/auth/2fa/verify-setup",
+          {
+            code: setupCode.trim(),
+          },
+        );
+
+      setTwoFactorEnabled(
+        response.data.twoFactorEnabled,
+      );
+
+      setBackupCodes(response.data.backupCodes);
+      setShowBackupCodes(true);
+      setCopied(false);
+
+      setSetupStarted(false);
+      setSetupCode("");
+      setOtpauthUrl("");
+      setSecret("");
+      setQrCode("");
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        setTwoFactorMessage(
+          error.response?.data?.error ??
+            "Unable to verify two-factor authentication.",
+        );
+      } else {
+        setTwoFactorMessage(
+          "Unable to connect to the server.",
+        );
+      }
+    } finally {
+      setTwoFactorLoading(false);
+    }
+  }
+
+  async function disableTwoFactor() {
+    setTwoFactorMessage("");
+    setTwoFactorLoading(true);
+
+    try {
+      const response =
+        await api.post<DisableResponse>(
+          "/auth/2fa/disable",
+          {
+            code: disableCode.trim(),
+          },
+        );
+
+      setTwoFactorEnabled(
+        response.data.twoFactorEnabled,
+      );
+
+      setDisableMode(false);
+      setDisableCode("");
+      setTwoFactorMessage(response.data.message);
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        setTwoFactorMessage(
+          error.response?.data?.error ??
+            "Unable to disable two-factor authentication.",
+        );
+      } else {
+        setTwoFactorMessage(
+          "Unable to connect to the server.",
+        );
+      }
+    } finally {
+      setTwoFactorLoading(false);
+    }
+  }
+
+  async function copyBackupCodes() {
+    await navigator.clipboard.writeText(
+      backupCodes.join("\n"),
+    );
+
+    setCopied(true);
+  }
+
+  function closeBackupCodes() {
+    setShowBackupCodes(false);
+    setBackupCodes([]);
+    setCopied(false);
+  }
+
+  function handlePasswordKeyDown(
+  event: React.KeyboardEvent<HTMLInputElement>,
+) {
+  setCapsLockOn(
+    event.getModifierState("CapsLock"),
+  );
+}
+
+function handlePasswordKeyUp(
+  event: React.KeyboardEvent<HTMLInputElement>,
+) {
+  setCapsLockOn(
+    event.getModifierState("CapsLock"),
+  );
+}
+
+  return (
+    <>
+      <div className="space-y-6">
+        {/* Password */}
+
+        <section className="glass rounded-3xl p-5 sm:p-6">
+          <div>
+            <h2 className="text-base font-semibold">
+              Password reset
+            </h2>
+          </div>
+
+          <form
+            onSubmit={handlePasswordSubmit}
+            className="mt-6 max-w-xl space-y-4"
+          >
+            <SecurityField
+  id="current-password"
+  label="Old password"
+  type="password"
+  value={currentPassword}
+  autoComplete="current-password"
+  onChange={(event) =>
+    setCurrentPassword(event.target.value)
+  }
+  onKeyDown={handlePasswordKeyDown}
+  onKeyUp={handlePasswordKeyUp}
+  onBlur={() => setCapsLockOn(false)}
+/>
+
+            <SecurityField
+  id="new-password"
+  label="New password"
+  type="password"
+  value={newPassword}
+  autoComplete="new-password"
+  onChange={(event) =>
+    setNewPassword(event.target.value)
+  }
+  onKeyDown={handlePasswordKeyDown}
+  onKeyUp={handlePasswordKeyUp}
+  onBlur={() => setCapsLockOn(false)}
+/>
+
+            <div className="flex flex-col gap-1.5">
+              <label
+                htmlFor="confirm-password"
+                className="text-sm font-medium"
+              >
+                Re-enter new password
+              </label>
+
+              <input
+                id="confirm-password"
+                type="password"
+                value={confirmPassword}
+                autoComplete="new-password"
+                onChange={(event) =>
+                  setConfirmPassword(event.target.value)
+                }
+                onKeyDown={handlePasswordKeyDown}
+  onKeyUp={handlePasswordKeyUp}
+  onBlur={() => setCapsLockOn(false)}
+                className={`h-11 rounded-xl border px-4 text-sm outline-none backdrop-blur-xl transition shadow-[0_4px_14px_rgba(31,38,135,0.08),inset_0_1px_0_rgba(255,255,255,0.9)] focus:ring-2 ${
+                  passwordsMatch
+                    ? "border-green-200/80 bg-green-50/60 focus:border-green-300 focus:ring-green-200/50"
+                    : "border-white/80 bg-white/60 focus:border-white focus:bg-white/75 focus:ring-white/60"
+                }`}
+              />
+            </div>
+                {capsLockOn && (
+  <p className="text-xs text-amber-700">
+    Caps Lock is on
+  </p>
+)}
+            <button
+              type="submit"
+              disabled={passwordLoading}
+              className="h-11 rounded-xl bg-black px-5 text-sm font-medium text-white shadow-lg shadow-black/10 transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {passwordLoading
+                ? "Changing..."
+                : "Change password"}
+            </button>
+
+            {passwordMessage && (
+              <p className="text-sm text-zinc-700">
+                {passwordMessage}
+              </p>
+            )}
+          </form>
+        </section>
+
+        {/* 2FA */}
+
+        <section className="glass rounded-3xl p-5 sm:p-6">
+          <div>
+            <h2 className="text-base font-semibold">
+              Two-factor authentication
+            </h2>
+
+            <p className="mt-1 text-sm text-zinc-600">
+              Add an extra layer of security to your
+              account.
+            </p>
+          </div>
+
+          {!twoFactorEnabled && !setupStarted && (
+            <div className="mt-6">
+              <button
+                type="button"
+                onClick={startTwoFactorSetup}
+                disabled={twoFactorLoading}
+                className="h-11 rounded-xl bg-black px-5 text-sm font-medium text-white shadow-lg shadow-black/10 transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {twoFactorLoading
+                  ? "Starting..."
+                  : "Enable 2FA"}
+              </button>
+            </div>
+          )}
+
+          {!twoFactorEnabled && setupStarted && (
+            <div className="mt-6 max-w-xl space-y-6">
+              <div>
+                <p className="text-sm font-medium">
+                  Scan this QR code
+                </p>
+
+                <p className="mt-1 text-sm text-zinc-600">
+                  Scan the code with your authenticator
+                  app.
+                </p>
+
+                <div className="mt-4 flex min-h-64 items-center justify-center rounded-2xl border border-white/70 bg-white/50 p-4">
+                  {qrCode ? (
+                    <img
+                      src={qrCode}
+                      alt="Two-factor authentication QR code"
+                      className="h-56 w-56 rounded-xl"
+                    />
+                  ) : (
+                    <p className="text-sm text-zinc-500">
+                      Generating QR code...
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <p className="text-sm font-medium">
+                  Setup key
+                </p>
+
+                <div className="mt-2 overflow-x-auto rounded-xl border border-white/80 bg-white/60 px-4 py-3 font-mono text-sm shadow-[0_4px_14px_rgba(31,38,135,0.08)]">
+                  {secret}
+                </div>
+              </div>
+
+              <SecurityField
+                id="setup-code"
+                label="Authentication code"
+                value={setupCode}
+                inputMode="numeric"
+                onChange={(event) =>
+                  setSetupCode(event.target.value)
+                }
+              />
+
+              <button
+                type="button"
+                onClick={verifyTwoFactorSetup}
+                disabled={twoFactorLoading}
+                className="h-11 rounded-xl bg-black px-5 text-sm font-medium text-white shadow-lg shadow-black/10 transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {twoFactorLoading
+                  ? "Verifying..."
+                  : "Verify and enable 2FA"}
+              </button>
+            </div>
+          )}
+
+          {twoFactorEnabled && !disableMode && (
+            <div className="mt-6">
+              <div className="mb-4 rounded-xl border border-green-200/70 bg-green-50/60 px-4 py-3 text-sm text-green-700">
+                Two-factor authentication is enabled.
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setTwoFactorMessage("");
+                  setDisableMode(true);
+                }}
+                className="h-11 rounded-xl border border-red-200/80 bg-red-50/60 px-5 text-sm font-medium text-red-700 transition hover:bg-red-50"
+              >
+                Disable 2FA
+              </button>
+            </div>
+          )}
+
+          {twoFactorEnabled && disableMode && (
+            <div className="mt-6 max-w-xl space-y-4">
+              <p className="text-sm text-zinc-600">
+                Enter your current authenticator code to
+                disable two-factor authentication.
+              </p>
+
+              <SecurityField
+                id="disable-code"
+                label="Authentication code"
+                value={disableCode}
+                inputMode="numeric"
+                onChange={(event) =>
+                  setDisableCode(event.target.value)
+                }
+              />
+
+              <div className="flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={disableTwoFactor}
+                  disabled={twoFactorLoading}
+                  className="h-11 rounded-xl bg-black px-5 text-sm font-medium text-white shadow-lg shadow-black/10 transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {twoFactorLoading
+                    ? "Disabling..."
+                    : "Disable 2FA"}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDisableMode(false);
+                    setDisableCode("");
+                    setTwoFactorMessage("");
+                  }}
+                  className="h-11 rounded-xl border border-white/80 bg-white/60 px-5 text-sm font-medium text-zinc-700 shadow-sm transition hover:bg-white/75"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+
+          {twoFactorMessage && (
+            <p className="mt-4 text-sm text-zinc-700">
+              {twoFactorMessage}
+            </p>
+          )}
+        </section>
+      </div>
+
+      {/* Backup codes popup */}
+
+      {showBackupCodes && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6">
+          <button
+            type="button"
+            aria-label="Close backup codes"
+            className="absolute inset-0 bg-black/10 backdrop-blur-[3px]"
+          />
+
+          <div className="relative flex max-h-[90vh] w-full max-w-lg flex-col rounded-3xl border border-white/80 bg-white/80 p-5 shadow-[0_24px_70px_rgba(31,38,135,0.18)] backdrop-blur-2xl sm:p-6">
+            <div>
+              <h2 className="text-lg font-semibold">
+                Save your backup codes
+              </h2>
+
+              <p className="mt-2 text-sm leading-6 text-zinc-600">
+                Two-factor authentication is now enabled.
+                Save these backup codes somewhere safe.
+                They will not be shown again.
+              </p>
+            </div>
+
+            <div className="mt-5 max-h-[45vh] overflow-y-auto rounded-2xl border border-white/80 bg-white/60 p-3">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                {backupCodes.map((code) => (
+                  <div
+                    key={code}
+                    className="rounded-xl border border-white/70 bg-white/70 px-3 py-2.5 text-center font-mono text-sm tracking-wide shadow-sm"
+                  >
+                    {code}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={copyBackupCodes}
+                className="h-11 rounded-xl border border-white/80 bg-white/70 px-5 text-sm font-medium text-zinc-800 shadow-sm transition hover:bg-white"
+              >
+                {copied ? "Copied" : "Copy all codes"}
+              </button>
+
+              <button
+                type="button"
+                onClick={closeBackupCodes}
+                className="h-11 rounded-xl bg-black px-5 text-sm font-medium text-white shadow-lg shadow-black/10 transition hover:bg-zinc-800"
+              >
+                I've saved them
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+type SecurityFieldProps = {
+  id: string;
+  label: string;
+  type?: string;
+  value: string;
+  autoComplete?: string;
+  inputMode?: "text" | "numeric";
+  onChange: (
+    event: ChangeEvent<HTMLInputElement>,
+  ) => void;
+  onKeyDown?: (
+    event: React.KeyboardEvent<HTMLInputElement>,
+  ) => void;
+  onKeyUp?: (
+    event: React.KeyboardEvent<HTMLInputElement>,
+  ) => void;
+  onBlur?: (
+    event: React.FocusEvent<HTMLInputElement>,
+  ) => void;
+};
+
+function SecurityField({
+  id,
+  label,
+  type = "text",
+  value,
+  autoComplete,
+  inputMode,
+  onChange,
+  onKeyDown,
+  onKeyUp,
+  onBlur,
+}: SecurityFieldProps) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <label
+        htmlFor={id}
+        className="text-sm font-medium"
+      >
+        {label}
+      </label>
+
+     <input
+  id={id}
+  name={id}
+  type={type}
+  value={value}
+  autoComplete={autoComplete}
+  inputMode={inputMode}
+  onChange={onChange}
+  onKeyDown={onKeyDown}
+  onKeyUp={onKeyUp}
+  onBlur={onBlur}
+  className="h-11 rounded-xl border border-white/80 bg-white/60 px-4 text-sm shadow-[0_4px_14px_rgba(31,38,135,0.08),inset_0_1px_0_rgba(255,255,255,0.9)] outline-none backdrop-blur-xl transition placeholder:text-zinc-400 hover:bg-white/65 focus:border-white focus:bg-white/75 focus:shadow-[0_6px_18px_rgba(31,38,135,0.12),inset_0_1px_0_rgba(255,255,255,0.95)] focus:ring-2 focus:ring-white/60"
+/>
+    </div>
+  );
+}
+
