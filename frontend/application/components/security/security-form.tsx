@@ -81,6 +81,24 @@ export default function SecurityForm({
     confirmPassword.length > 0 &&
     newPassword === confirmPassword;
   const [capsLockOn, setCapsLockOn] = useState(false);
+
+  const [showBackupCodeRegeneration, setShowBackupCodeRegeneration] =
+  useState(false);
+
+const [backupCodeVerification, setBackupCodeVerification] =
+  useState("");
+
+const [backupCodeRegenerationLoading, setBackupCodeRegenerationLoading] =
+  useState(false);
+
+const [backupCodeRegenerationError, setBackupCodeRegenerationError] =
+  useState("");
+
+const [newBackupCodes, setNewBackupCodes] =
+  useState<string[] | null>(null);
+
+const [backupCodesCopied, setBackupCodesCopied] =
+  useState(false);
   useEffect(() => {
     if (!otpauthUrl) {
       setQrCode("");
@@ -306,6 +324,81 @@ async function handlePasswordSubmit(
   );
 }
 
+async function handleBackupCodeRegeneration(
+  event: FormEvent<HTMLFormElement>,
+) {
+  event.preventDefault();
+
+  setBackupCodeRegenerationError("");
+
+  const code = backupCodeVerification.trim();
+
+  if (!code) {
+    setBackupCodeRegenerationError(
+      "Enter your authenticator code or backup code.",
+    );
+    return;
+  }
+
+  setBackupCodeRegenerationLoading(true);
+
+  try {
+    const response = await api.post(
+      "/auth/2fa/backup-codes/regenerate",
+      {
+        code,
+      },
+    );
+
+    setNewBackupCodes(response.data.backupCodes ?? []);
+
+    setBackupCodeVerification("");
+    setShowBackupCodeRegeneration(false);
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      const backendMessage =
+        error.response?.data?.message ??
+        error.response?.data?.error;
+
+      setBackupCodeRegenerationError(
+        backendMessage ??
+          "Unable to regenerate backup codes.",
+      );
+    } else {
+      setBackupCodeRegenerationError(
+        "Unable to connect to the server.",
+      );
+    }
+  } finally {
+    setBackupCodeRegenerationLoading(false);
+  }
+}
+
+async function handleCopyNewBackupCodes() {
+  if (!newBackupCodes) {
+    return;
+  }
+
+  try {
+    await navigator.clipboard.writeText(
+      newBackupCodes.join("\n"),
+    );
+
+    setBackupCodesCopied(true);
+
+    window.setTimeout(() => {
+      setBackupCodesCopied(false);
+    }, 2000);
+  } catch {
+    setBackupCodesCopied(false);
+  }
+}
+
+function closeNewBackupCodes() {
+  setNewBackupCodes(null);
+  setBackupCodesCopied(false);
+}
+
 function handlePasswordKeyUp(
   event: React.KeyboardEvent<HTMLInputElement>,
 ) {
@@ -473,26 +566,41 @@ function handlePasswordKeyUp(
                 </div>
               </div>
 
-              <SecurityField
-                id="setup-code"
-                label="Authentication code"
-                value={setupCode}
-                inputMode="numeric"
-                onChange={(event) =>
-                  setSetupCode(event.target.value)
-                }
-              />
+              <div className="rounded-2xl border border-white/70 bg-white/40 p-5 backdrop-blur-xl">
+  <h3 className="text-sm font-semibold">
+    Verify your authenticator
+  </h3>
 
-              <button
-                type="button"
-                onClick={verifyTwoFactorSetup}
-                disabled={twoFactorLoading}
-                className="h-11 rounded-xl bg-black px-5 text-sm font-medium text-white shadow-lg shadow-black/10 transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {twoFactorLoading
-                  ? "Verifying..."
-                  : "Verify and enable 2FA"}
-              </button>
+  <p className="mt-1 text-sm leading-6 text-zinc-600">
+    Enter the 6-digit code shown in your authenticator
+    app to complete two-factor authentication setup.
+  </p>
+
+  <div className="mt-4">
+    <SecurityField
+      id="setup-code"
+      label="Authentication code"
+      value={setupCode}
+      inputMode="numeric"
+      onChange={(event) =>
+        setSetupCode(event.target.value)
+      }
+    />
+  </div>
+
+  <div className="mt-4">
+    <button
+      type="button"
+      onClick={verifyTwoFactorSetup}
+      disabled={twoFactorLoading}
+      className="h-11 rounded-xl bg-zinc-900 px-5 text-sm font-medium text-white shadow-lg shadow-black/10 transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
+    >
+      {twoFactorLoading
+        ? "Verifying..."
+        : "Verify and enable 2FA"}
+    </button>
+  </div>
+</div>
             </div>
           )}
 
@@ -567,62 +675,195 @@ function handlePasswordKeyUp(
         </section>
       </div>
 
-      {/* Backup codes popup */}
+          {twoFactorEnabled && (
+  <section className="mt-8 glass rounded-2xl p-6">
+    <div>
+      <h2 className="text-base font-semibold">
+        Backup codes
+      </h2>
 
-      {showBackupCodes && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6">
+      <p className="mt-1 text-sm text-zinc-600">
+        Generate a new set of backup codes if you need to
+        replace your current codes.
+      </p>
+    </div>
+
+    {!showBackupCodeRegeneration && (
+     <button
+  type="button"
+  onClick={() => {
+    setShowBackupCodeRegeneration(true);
+    setBackupCodeRegenerationError("");
+  }}
+  className="mt-5 rounded-xl border border-zinc-300/70 bg-zinc-200/80 px-4 py-2.5 text-sm font-medium text-zinc-900 shadow-sm transition-colors hover:bg-zinc-300/80"
+>
+  Generate new backup codes
+</button>
+    )}
+
+    {showBackupCodeRegeneration && (
+      <form
+        onSubmit={handleBackupCodeRegeneration}
+        className="mt-5 rounded-2xl border border-white/70 bg-white/40 p-5"
+      >
+        <h3 className="text-sm font-semibold">
+          Verify your identity
+        </h3>
+
+        <p className="mt-1 text-sm leading-6 text-zinc-600">
+          Enter your authenticator code or backup code to
+          generate a new set of backup codes.
+        </p>
+
+        <input
+          type="text"
+          value={backupCodeVerification}
+          onChange={(event) =>
+            setBackupCodeVerification(event.target.value)
+          }
+          placeholder="TOTP or backup code"
+          autoComplete="one-time-code"
+          className="mt-4 w-full rounded-xl border border-white/70 bg-white/60 px-4 py-3 text-sm text-zinc-900 outline-none backdrop-blur-xl placeholder:text-zinc-500 focus:border-white focus:ring-2 focus:ring-white/60"
+        />
+
+        {backupCodeRegenerationError && (
+          <p className="mt-2 text-sm text-red-600">
+            {backupCodeRegenerationError}
+          </p>
+        )}
+
+        <div className="mt-4 flex flex-wrap gap-2">
+          <button
+            type="submit"
+            disabled={backupCodeRegenerationLoading}
+            className="rounded-xl bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {backupCodeRegenerationLoading
+              ? "Generating..."
+              : "Generate new backup codes"}
+          </button>
+
           <button
             type="button"
-            aria-label="Close backup codes"
-            className="absolute inset-0 bg-black/10 backdrop-blur-[3px]"
-          />
-
-          <div className="relative flex max-h-[90vh] w-full max-w-lg flex-col rounded-3xl border border-white/80 bg-white/80 p-5 shadow-[0_24px_70px_rgba(31,38,135,0.18)] backdrop-blur-2xl sm:p-6">
-            <div>
-              <h2 className="text-lg font-semibold">
-                Save your backup codes
-              </h2>
-
-              <p className="mt-2 text-sm leading-6 text-zinc-600">
-                Two-factor authentication is now enabled.
-                Save these backup codes somewhere safe.
-                They will not be shown again.
-              </p>
-            </div>
-
-            <div className="mt-5 max-h-[45vh] overflow-y-auto rounded-2xl border border-white/80 bg-white/60 p-3">
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                {backupCodes.map((code) => (
-                  <div
-                    key={code}
-                    className="rounded-xl border border-white/70 bg-white/70 px-3 py-2.5 text-center font-mono text-sm tracking-wide shadow-sm"
-                  >
-                    {code}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:justify-end">
-              <button
-                type="button"
-                onClick={copyBackupCodes}
-                className="h-11 rounded-xl border border-white/80 bg-white/70 px-5 text-sm font-medium text-zinc-800 shadow-sm transition hover:bg-white"
-              >
-                {copied ? "Copied" : "Copy all codes"}
-              </button>
-
-              <button
-                type="button"
-                onClick={closeBackupCodes}
-                className="h-11 rounded-xl bg-black px-5 text-sm font-medium text-white shadow-lg shadow-black/10 transition hover:bg-zinc-800"
-              >
-                I've saved them
-              </button>
-            </div>
-          </div>
+            disabled={backupCodeRegenerationLoading}
+            onClick={() => {
+              setShowBackupCodeRegeneration(false);
+              setBackupCodeVerification("");
+              setBackupCodeRegenerationError("");
+            }}
+            className="rounded-xl border border-white/80 bg-white/60 px-4 py-2.5 text-sm font-medium text-zinc-800 transition-colors hover:bg-white/80 disabled:opacity-60"
+          >
+            Cancel
+          </button>
         </div>
-      )}
+      </form>
+    )}
+  </section>
+)}
+      {/* Backup codes popup */}
+
+
+{showBackupCodes && (
+  <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6">
+    <button
+      type="button"
+      aria-label="Close backup codes"
+      className="absolute inset-0 bg-black/10 backdrop-blur-[3px]"
+    />
+
+    <div className="relative flex max-h-[90vh] w-full max-w-lg flex-col rounded-3xl border border-white/70 bg-white/40 p-5 shadow-[0_24px_70px_rgba(31,38,135,0.18)] backdrop-blur-xl sm:p-6">
+      <div>
+        <h2 className="text-lg font-semibold">
+          Save your backup codes
+        </h2>
+
+        <p className="mt-2 text-sm leading-6 text-zinc-600">
+          Two-factor authentication is now enabled.
+          Save these backup codes somewhere safe.
+          They will not be shown again.
+        </p>
+      </div>
+
+      <div className="mt-5 max-h-[45vh] overflow-y-auto rounded-2xl border border-white/70 bg-white/50 p-3 backdrop-blur-xl">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          {backupCodes.map((code) => (
+            <div
+              key={code}
+              className="rounded-xl border border-white/70 bg-white/70 px-3 py-2.5 text-center font-mono text-sm tracking-wide shadow-sm"
+            >
+              {code}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:justify-end">
+        <button
+          type="button"
+          onClick={copyBackupCodes}
+          className="h-11 rounded-xl border border-white/80 bg-white/70 px-5 text-sm font-medium text-zinc-800 shadow-sm transition hover:bg-white"
+        >
+          {copied ? "Copied" : "Copy all codes"}
+        </button>
+
+        <button
+          type="button"
+          onClick={closeBackupCodes}
+          className="h-11 rounded-xl bg-black px-5 text-sm font-medium text-white shadow-lg shadow-black/10 transition hover:bg-zinc-800"
+        >
+          I've saved them
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
+
+      {newBackupCodes !== null && (
+  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4 backdrop-blur-sm">
+    <div className="glass-strong w-full max-w-lg rounded-3xl p-6">
+      <h2 className="text-lg font-semibold">
+        New backup codes
+      </h2>
+
+      <p className="mt-2 text-sm leading-6 text-zinc-600">
+        Save these backup codes somewhere secure. They will
+        not be shown again after you close this window.
+      </p>
+
+      <div className="mt-5 grid gap-2 rounded-2xl border border-white/70 bg-white/50 p-4 sm:grid-cols-2">
+        {newBackupCodes.map((backupCode) => (
+          <div
+            key={backupCode}
+            className="rounded-xl bg-white/70 px-3 py-2 text-center font-mono text-sm tracking-wide text-zinc-800"
+          >
+            {backupCode}
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-5 flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={handleCopyNewBackupCodes}
+          className="rounded-xl border border-white/80 bg-white/60 px-4 py-2.5 text-sm font-medium text-zinc-800 transition-colors hover:bg-white/80"
+        >
+          {backupCodesCopied
+            ? "Copied"
+            : "Copy all codes"}
+        </button>
+
+        <button
+          type="button"
+          onClick={closeNewBackupCodes}
+          className="rounded-xl bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-zinc-800"
+        >
+          I've saved them
+        </button>
+      </div>
+    </div>
+  </div>
+)}
     </>
   );
 }

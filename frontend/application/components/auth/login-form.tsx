@@ -11,6 +11,14 @@ interface LoginFormProps {
   loginHint: string;
 }
 
+type LoginResponse = {
+  message: string;
+  twoFactorRequired: boolean;
+  challengeToken?: string;
+  backupCodesLow: boolean;
+  backupCodesRemaining: number;
+};
+
 export default function LoginForm({
   loginHint,
 }: LoginFormProps) {
@@ -42,6 +50,15 @@ export default function LoginForm({
         setChallengeToken(data.challengeToken);
         return;
       }
+
+      if (response.data.backupCodesLow) {
+  sessionStorage.setItem(
+    "backupCodesLow",
+    JSON.stringify({
+      remaining: response.data.backupCodesRemaining,
+    }),
+  );
+}
 
       window.location.href = "/dashboard";
     } catch (error) {

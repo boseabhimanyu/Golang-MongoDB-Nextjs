@@ -1,16 +1,23 @@
+import BackupCodesWarning from "@/components/dashboard/backup-codes-warning";
+
 export default function DashboardPage() {
   return (
+    
     <main className="p-4 sm:p-6 lg:p-8">
-      <div className="mx-auto max-w-7xl">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Dashboard
-          </h1>
+  <div className="mx-auto max-w-7xl">
+    <div>
+      <h1 className="text-2xl font-semibold tracking-tight">
+        Dashboard
+      </h1>
 
-          <p className="mt-1 text-sm text-zinc-600">
-            Welcome back. Here’s an overview of your application.
-          </p>
-        </div>
+      <p className="mt-1 text-sm text-zinc-600">
+        Welcome back. Here’s an overview of your application.
+      </p>
+    </div>
+
+    <div className="mt-6">
+      <BackupCodesWarning />
+    </div>
 
         <section className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <DashboardCard

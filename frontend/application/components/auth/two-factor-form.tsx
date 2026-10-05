@@ -28,12 +28,24 @@ export default function TwoFactorForm({
     setLoading(true);
 
     try {
-      await api.post("/auth/2fa/verify-login", {
-        challengeToken,
-        code: code.trim(),
-      });
+      const response = await api.post(
+  "/auth/2fa/verify-login",
+  {
+    challengeToken,
+    code: code.trim(),
+  },
+);
 
-      router.push("/dashboard");
+if (response.data.backupCodesLow) {
+  sessionStorage.setItem(
+    "backupCodesLow",
+    JSON.stringify({
+      remaining: response.data.backupCodesRemaining,
+    }),
+  );
+}
+
+router.push("/dashboard");
     } catch (error) {
       if (axios.isAxiosError(error)) {
         setError(
