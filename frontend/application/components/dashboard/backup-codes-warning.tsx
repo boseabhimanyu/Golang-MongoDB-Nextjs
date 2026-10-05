@@ -25,18 +25,13 @@ export default function BackupCodesWarning() {
         JSON.parse(stored);
 
       setRemaining(data.remaining);
-
-      const timer = window.setTimeout(() => {
-        sessionStorage.removeItem("backupCodesLow");
-        setRemaining(null);
-      }, 5000);
-
-      return () => {
-        window.clearTimeout(timer);
-      };
     } catch {
       sessionStorage.removeItem("backupCodesLow");
     }
+
+    return () => {
+      sessionStorage.removeItem("backupCodesLow");
+    };
   }, []);
 
   if (remaining === null) {
