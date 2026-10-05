@@ -44,10 +44,7 @@ func (s *TOTPService) GenerateSecret(accountName string) (*TOTPSetup, error) {
 	}, nil
 }
 
-func (s *TOTPService) VerifyCode(
-	secret string,
-	code string,
-) error {
+func (s *TOTPService) VerifyCode(secret string, code string) error {
 	secret = strings.TrimSpace(secret)
 	code = strings.TrimSpace(code)
 
@@ -63,9 +60,28 @@ func (s *TOTPService) VerifyCode(
 		Algorithm: otp.AlgorithmSHA1,
 	}
 
-	expectedCode, err := totp.GenerateCodeCustom(
+	currentCode, err := totp.GenerateCodeCustom(
 		secret,
 		time.Now().UTC(),
+		opts,
+	)
+	if err != nil {
+		return err
+	}
+
+	// Below log.Printf has to be deleted/changed once topt error is solved.
+	previousCode, err := totp.GenerateCodeCustom(
+		secret,
+		time.Now().UTC().Add(-30*time.Second),
+		opts,
+	)
+	if err != nil {
+		return err
+	}
+
+	nextCode, err := totp.GenerateCodeCustom(
+		secret,
+		time.Now().UTC().Add(30*time.Second),
 		opts,
 	)
 	if err != nil {
@@ -78,15 +94,21 @@ func (s *TOTPService) VerifyCode(
 		time.Now().UTC(),
 		opts,
 	)
-	// Below log.Printf has to be deleted once topt error is solved.
+
+	// Below log.Printf has to be deleted/changed once topt error is solved.
+	if err != nil {
+		return err
+	}
+
 	log.Printf(
-		"TOTP diagnostic: unix=%d second=%d supplied=%s expected=%s valid=%v err=%v",
+		"TOTP diagnostic: unix=%d second=%d supplied=%s previous=%s current=%s next=%s valid=%v",
 		time.Now().UTC().Unix(),
 		time.Now().UTC().Second(),
 		code,
-		expectedCode,
+		previousCode,
+		currentCode,
+		nextCode,
 		valid,
-		err,
 	)
 	// 	| Skew | Accepted windows | Approx. tolerance |
 	// |---:|---|---:|
@@ -94,9 +116,6 @@ func (s *TOTPService) VerifyCode(
 	// | `1` | Previous + current + next | ~90 sec total |
 	// | `2` | 2 previous + current + 2 next | ~150 sec |
 	// | `3` | 3 previous + current + 3 next | ~210 sec |
-	if err != nil {
-		return err
-	}
 
 	if !valid {
 		return apperrors.ErrInvalidTOTPCode

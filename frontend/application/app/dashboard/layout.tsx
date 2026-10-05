@@ -70,12 +70,14 @@ export default async function DashboardLayout({
       Customers
     </Link>
 
-    <Link
-      href="/dashboard/settings"
-      className="block rounded-xl px-3 py-2.5 text-sm font-medium transition-colors hover:bg-white/50"
-    >
-      Settings
-    </Link>
+    {user?.role === "admin" && (
+  <Link
+    href="/dashboard/settings"
+    className="block rounded-xl px-3 py-2.5 text-sm font-medium transition-colors hover:bg-white/50"
+  >
+    Settings
+  </Link>
+)}
   </div>
 </nav>
         </aside>
