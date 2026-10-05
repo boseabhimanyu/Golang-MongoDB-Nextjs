@@ -7,12 +7,12 @@ export type User = {
   altEmail: string;
   phone: string;
   role: string;
-  profilePic: string;
+  profilePic?: string | null;
   status: boolean;
   createdAt: string;
   updatedAt: string;
   lastLoginAt: string;
-  dateOfBirth: string | null;
+  dateOfBirth?: string | null;
   addressLine1: string;
   addressLine2: string;
   city: string;
