@@ -20,3 +20,28 @@ export type User = {
   pinCode: string;
   twoFactorEnabled: boolean;
 };
+
+export type PageVisibility = "public" | "registered";
+
+export type Page = {
+  id: string;
+  title: string;
+  content: string;
+  authorId: string;
+  slug: string;
+  visibility: PageVisibility;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type PagesPagination = {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+};
+
+export type PagesResponse = {
+  pages: Page[];
+  pagination: PagesPagination;
+};

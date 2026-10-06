@@ -70,6 +70,13 @@ export default async function DashboardLayout({
       Customers
     </Link>
 )}
+{user.role === "admin" && (    <Link
+  href="/dashboard/pages"
+  className="block rounded-xl px-3 py-2.5 text-sm font-medium transition-colors hover:bg-white/50"
+>
+  Pages
+</Link>
+)}
     {user?.role === "admin" && (
   <Link
     href="/dashboard/settings"
