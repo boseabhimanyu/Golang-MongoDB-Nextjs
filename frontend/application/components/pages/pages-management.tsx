@@ -85,16 +85,20 @@ export default function PagesManagement() {
   );
 
   const [saving, setSaving] = useState(false);
-// State to track which page is pending confirmation
-const [pageToDelete, setPageToDelete] = useState<Page | null>(null);
-const [isDeleting, setIsDeleting] = useState(false);
-function confirmDelete(selectedPage: Page) {
-  setPageToDelete(selectedPage);
-}
-function cancelDelete() {
-  if (isDeleting) return;
-  setPageToDelete(null);
-}
+
+  // State to track which page is pending confirmation
+  const [pageToDelete, setPageToDelete] = useState<Page | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  function confirmDelete(selectedPage: Page) {
+    setPageToDelete(selectedPage);
+  }
+
+  function cancelDelete() {
+    if (isDeleting) return;
+    setPageToDelete(null);
+  }
+
   async function loadPages() {
     setLoading(true);
 
@@ -139,12 +143,29 @@ function cancelDelete() {
   }, [page, visibilityFilter]);
 
   function handleViewPage(selectedPage: Page) {
-  setViewingPage(selectedPage);
-}
+    setViewingPage(selectedPage);
+  }
 
-function closeView() {
-  setViewingPage(null);
-}
+  // Opens the live URL in a new browser tab/window
+  function handleViewNewPage(selectedPage: Page) {
+    if (!selectedPage.slug) {
+      showNotification(
+        "This page does not have a slug.",
+        "error",
+      );
+      return;
+    }
+
+    window.open(
+      `/${selectedPage.slug}`,
+      "_blank",
+      "noopener,noreferrer",
+    );
+  }
+
+  function closeView() {
+    setViewingPage(null);
+  }
 
   function openCreate() {
     setEditingPage(null);
@@ -263,35 +284,35 @@ function closeView() {
     }
   }
 
-async function executeDelete() {
-  if (!pageToDelete) return;
+  async function executeDelete() {
+    if (!pageToDelete) return;
 
-  setIsDeleting(true);
+    setIsDeleting(true);
 
-  try {
-    const response = await api.delete(`/admin/pages/${pageToDelete.id}`);
+    try {
+      const response = await api.delete(`/admin/pages/${pageToDelete.id}`);
 
-    showNotification(
-      response.data?.message ?? "Page deleted successfully.",
-      "success",
-    );
+      showNotification(
+        response.data?.message ?? "Page deleted successfully.",
+        "success",
+      );
 
-    setPageToDelete(null);
+      setPageToDelete(null);
 
-    if (pages.length === 1 && page > 1) {
-      setPage((current) => current - 1);
-    } else {
-      await loadPages();
+      if (pages.length === 1 && page > 1) {
+        setPage((current) => current - 1);
+      } else {
+        await loadPages();
+      }
+    } catch (error) {
+      showNotification(
+        getErrorMessage(error, "Unable to delete page."),
+        "error",
+      );
+    } finally {
+      setIsDeleting(false);
     }
-  } catch (error) {
-    showNotification(
-      getErrorMessage(error, "Unable to delete page."),
-      "error",
-    );
-  } finally {
-    setIsDeleting(false);
   }
-}
 
   const filteredPages = pages.filter((item) => {
     const query = search.trim().toLowerCase();
@@ -313,33 +334,37 @@ async function executeDelete() {
   return (
     <>
       <div className="glass rounded-3xl p-4 sm:p-5 lg:p-6">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <h2 className="text-lg font-semibold tracking-tight">
-              Pages
-            </h2>
+        {/* Smoked Liquid Glass Header Bar */}
+        <div className="relative overflow-hidden rounded-2xl border border-white/70 bg-zinc-900/[0.07] p-5 shadow-[0_4px_20px_rgba(0,0,0,0.03)] backdrop-blur-xl transition-all">
+          {/* Specular light highlight */}
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/80 to-transparent" />
 
-            <p className="mt-1 text-sm text-zinc-600">
-              Manage website content and page visibility.
-            </p>
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <h2 className="text-lg font-semibold tracking-tight text-zinc-900">
+                Pages
+              </h2>
+              <p className="mt-1 text-sm text-zinc-600">
+                Manage website content and page visibility.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={openCreate}
+              className="inline-flex items-center justify-center rounded-xl bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-zinc-800 active:scale-[0.98]"
+            >
+              + Create page
+            </button>
           </div>
-
-          <button
-            type="button"
-            onClick={openCreate}
-            className="rounded-xl bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-zinc-800"
-          >
-            + Create page
-          </button>
         </div>
 
+        {/* Search & Visibility Filters */}
         <div className="mt-6 flex flex-col gap-3 md:flex-row">
           <input
             type="search"
             value={search}
-            onChange={(event) =>
-              setSearch(event.target.value)
-            }
+            onChange={(event) => setSearch(event.target.value)}
             placeholder="Search pages..."
             className="min-w-0 flex-1 rounded-xl border border-white/80 bg-white/55 px-4 py-2.5 text-sm outline-none backdrop-blur-xl transition focus:border-zinc-300 focus:bg-white/75"
           />
@@ -347,29 +372,18 @@ async function executeDelete() {
           <select
             value={visibilityFilter}
             onChange={(event) => {
-              setVisibilityFilter(
-                event.target.value as
-                  | ""
-                  | PageVisibility,
-              );
+              setVisibilityFilter(event.target.value as "" | PageVisibility);
               setPage(1);
             }}
             className="rounded-xl border border-white/80 bg-white/55 px-4 py-2.5 text-sm outline-none backdrop-blur-xl"
           >
-            <option value="">
-              All visibility
-            </option>
-
-            <option value="public">
-              Public
-            </option>
-
-            <option value="registered">
-              Registered
-            </option>
+            <option value="">All visibility</option>
+            <option value="public">Public</option>
+            <option value="registered">Registered</option>
           </select>
         </div>
 
+        {/* Table List Section */}
         <div className="mt-6 overflow-hidden rounded-2xl border border-white/70">
           {loading ? (
             <div className="px-5 py-12 text-center text-sm text-zinc-500">
@@ -384,15 +398,13 @@ async function executeDelete() {
               {filteredPages.map((item) => (
                 <div
                   key={item.id}
-                  className="flex flex-col gap-4 bg-white/25 px-5 py-4 transition hover:bg-white/45 lg:flex-row lg:items-center lg:justify-between"
+                  className="flex flex-col gap-4 bg-zinc-900/[0.07] px-5 py-4 backdrop-blur-xl transition hover:bg-zinc-900/[0.11] lg:flex-row lg:items-center lg:justify-between"
                 >
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <button
                         type="button"
-                        onClick={() =>
-                          handleViewPage(item)
-                        }
+                        onClick={() => openEdit(item)}
                         className="truncate text-left text-sm font-semibold text-zinc-900 underline-offset-4 transition hover:text-zinc-600 hover:underline"
                       >
                         {item.title}
@@ -400,55 +412,58 @@ async function executeDelete() {
 
                       <span
                         className={
-                          item.visibility ===
-                          "public"
-                            ? "rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-700"
-                            : "rounded-full bg-blue-100 px-2.5 py-1 text-xs font-medium text-blue-700"
+                          item.visibility === "public"
+                            ? "rounded-full border border-emerald-600/20 bg-emerald-500/15 px-2.5 py-0.5 text-xs font-semibold text-emerald-800 backdrop-blur-sm"
+                            : "rounded-full border border-blue-600/20 bg-blue-500/15 px-2.5 py-0.5 text-xs font-semibold text-blue-800 backdrop-blur-sm"
                         }
                       >
-                        {item.visibility ===
-                        "public"
+                        {item.visibility === "public"
                           ? "Public"
                           : "Registered"}
                       </span>
                     </div>
-                          
-                    <p className="mt-1 text-xs text-zinc-400">
-                      Updated{" "}
-                      {new Date(
-                        item.updatedAt,
-                      ).toLocaleString()}
+
+                    <p className="mt-1 text-xs text-zinc-500">
+                      Updated {new Date(item.updatedAt).toLocaleString()}
                     </p>
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2">
                     <button
                       type="button"
-                      onClick={() =>
-                        handleViewPage(item)
-                      }
-                      className="rounded-xl border border-white/70 bg-white/55 px-3 py-2 text-sm font-medium text-zinc-700 transition hover:bg-white/80"
+                      onClick={() => handleViewPage(item)}
+                      className="rounded-xl border border-white/90 bg-white/85 px-3 py-2 text-sm font-medium text-zinc-800 shadow-[0_2px_8px_rgba(0,0,0,0.04)] backdrop-blur-md transition hover:border-white hover:bg-white hover:text-zinc-950 active:scale-[0.98]"
                     >
                       View
                     </button>
 
                     <button
                       type="button"
-                      onClick={() =>
-                        openEdit(item)
-                      }
-                      className="rounded-xl border border-white/70 bg-white/55 px-3 py-2 text-sm font-medium text-zinc-700 transition hover:bg-white/80"
+                      onClick={() => handleViewNewPage(item)}
+                      title="Open live page in new tab"
+                      className="rounded-xl border border-white/90 bg-white/85 px-3 py-2 text-sm font-medium text-zinc-800 shadow-[0_2px_8px_rgba(0,0,0,0.04)] backdrop-blur-md transition hover:border-white hover:bg-white hover:text-zinc-950 active:scale-[0.98]"
+                    >
+                      Live ↗
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => openEdit(item)}
+                      className="rounded-xl border border-white/90 bg-white/85 px-3 py-2 text-sm font-medium text-zinc-800 shadow-[0_2px_8px_rgba(0,0,0,0.04)] backdrop-blur-md transition hover:border-white hover:bg-white hover:text-zinc-950 active:scale-[0.98]"
                     >
                       Edit
                     </button>
 
                     <button
-  type="button"
-  onClick={() => confirmDelete(item)}
-  className="rounded-xl border border-red-200/70 bg-red-50/60 px-3 py-2 text-sm font-medium text-red-700 transition hover:bg-red-50"
->
-  Delete
-</button>
+                      type="button"
+                      onClick={() => confirmDelete(item)}
+                      disabled={isDeleting && pageToDelete?.id === item.id}
+                      className="rounded-xl border border-red-200/90 bg-red-100/70 px-3 py-2 text-sm font-medium text-red-700 shadow-[0_2px_8px_rgba(239,68,68,0.06)] backdrop-blur-md transition hover:border-red-300 hover:bg-red-100 hover:text-red-800 disabled:cursor-not-allowed disabled:opacity-50 active:scale-[0.98]"
+                    >
+                      {isDeleting && pageToDelete?.id === item.id
+                        ? "Deleting..."
+                        : "Delete"}
+                    </button>
                   </div>
                 </div>
               ))}
@@ -456,16 +471,13 @@ async function executeDelete() {
           )}
         </div>
 
+        {/* Pagination Controls */}
         {totalPages > 1 && (
           <div className="mt-5 flex items-center justify-between">
             <button
               type="button"
               disabled={page <= 1}
-              onClick={() =>
-                setPage(
-                  (current) => current - 1,
-                )
-              }
+              onClick={() => setPage((current) => current - 1)}
               className="rounded-xl border border-white/80 bg-white/55 px-4 py-2 text-sm font-medium text-zinc-700 disabled:cursor-not-allowed disabled:opacity-40"
             >
               Previous
@@ -478,11 +490,7 @@ async function executeDelete() {
             <button
               type="button"
               disabled={page >= totalPages}
-              onClick={() =>
-                setPage(
-                  (current) => current + 1,
-                )
-              }
+              onClick={() => setPage((current) => current + 1)}
               className="rounded-xl border border-white/80 bg-white/55 px-4 py-2 text-sm font-medium text-zinc-700 disabled:cursor-not-allowed disabled:opacity-40"
             >
               Next
@@ -491,6 +499,7 @@ async function executeDelete() {
         )}
       </div>
 
+      {/* Editor Modal */}
       {showEditor && (
         <div className="fixed inset-0 z-[90] overflow-y-auto bg-zinc-950/30 px-4 py-8 backdrop-blur-sm">
           <div className="mx-auto max-w-5xl">
@@ -535,8 +544,7 @@ async function executeDelete() {
                     onChange={(event) =>
                       setForm((current) => ({
                         ...current,
-                        title:
-                          event.target.value,
+                        title: event.target.value,
                       }))
                     }
                     className="w-full rounded-xl border border-white/80 bg-white/55 px-4 py-3 text-sm outline-none backdrop-blur-xl transition focus:border-zinc-300 focus:bg-white/75"
@@ -555,8 +563,7 @@ async function executeDelete() {
                       onChange={(event) =>
                         setForm((current) => ({
                           ...current,
-                          slug:
-                            event.target.value,
+                          slug: event.target.value,
                         }))
                       }
                       placeholder="page-slug"
@@ -575,8 +582,7 @@ async function executeDelete() {
                     onChange={(event) =>
                       setForm((current) => ({
                         ...current,
-                        visibility:
-                          event.target.value as PageVisibility,
+                        visibility: event.target.value as PageVisibility,
                       }))
                     }
                     className="w-full rounded-xl border border-white/80 bg-white/55 px-4 py-3 text-sm outline-none backdrop-blur-xl"
@@ -597,10 +603,7 @@ async function executeDelete() {
                   </label>
 
                   <PageEditor
-                    key={
-                      editingPage?.id ??
-                      "new-page"
-                    }
+                    key={editingPage?.id ?? "new-page"}
                     initialContent={form.content}
                     onChange={(content) =>
                       setForm((current) => ({
@@ -623,10 +626,7 @@ async function executeDelete() {
 
                   <button
                     type="submit"
-                    disabled={
-                      saving ||
-                      !form.title.trim()
-                    }
+                    disabled={saving || !form.title.trim()}
                     className="rounded-xl bg-zinc-900 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {saving
@@ -641,141 +641,152 @@ async function executeDelete() {
           </div>
         </div>
       )}
+
       {/* Preview Modal */}
-{viewingPage && (
-  <div className="fixed inset-0 z-[90] overflow-y-auto bg-zinc-950/30 px-4 py-8 backdrop-blur-sm">
-    <div className="mx-auto max-w-4xl">
-      <div className="glass-strong rounded-3xl p-6 sm:p-8">
-        {/* Header */}
-        <div className="flex items-start justify-between gap-4 border-b border-white/70 pb-4">
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-xl font-bold tracking-tight text-zinc-900">
-                {viewingPage.title}
-              </h2>
-              <span
-                className={
-                  viewingPage.visibility === "public"
-                    ? "rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-700"
-                    : "rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-700"
-                }
-              >
-                {viewingPage.visibility === "public" ? "Public" : "Registered"}
-              </span>
+      {viewingPage && (
+        <div className="fixed inset-0 z-[90] overflow-y-auto bg-zinc-950/30 px-4 py-8 backdrop-blur-sm">
+          <div className="mx-auto max-w-4xl">
+            <div className="glass-strong rounded-3xl p-6 sm:p-8">
+              {/* Header */}
+              <div className="flex items-start justify-between gap-4 border-b border-white/70 pb-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-xl font-bold tracking-tight text-zinc-900">
+                      {viewingPage.title}
+                    </h2>
+                    <span
+                      className={
+                        viewingPage.visibility === "public"
+                          ? "rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-700"
+                          : "rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-700"
+                      }
+                    >
+                      {viewingPage.visibility === "public"
+                        ? "Public"
+                        : "Registered"}
+                    </span>
+                  </div>
+                  {viewingPage.slug && (
+                    <p className="mt-1 text-xs text-zinc-500">
+                      Slug: /{viewingPage.slug}
+                    </p>
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={closeView}
+                  className="rounded-xl px-3 py-1.5 text-xl font-semibold text-zinc-500 transition hover:bg-black/5 hover:text-zinc-800"
+                >
+                  ×
+                </button>
+              </div>
+
+              {/* Content Body */}
+              <div className="prose max-w-none pt-6 text-zinc-800">
+                {viewingPage.content ? (
+                  <div
+                    dangerouslySetInnerHTML={{
+                      __html: DOMPurify.sanitize(viewingPage.content),
+                    }}
+                  />
+                ) : (
+                  <p className="italic text-zinc-400">No content available.</p>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="mt-8 flex flex-wrap items-center justify-end gap-2 border-t border-white/70 pt-4">
+                <button
+                  type="button"
+                  onClick={closeView}
+                  className="rounded-xl border border-white/70 bg-white/55 px-3 py-2 text-sm font-medium text-zinc-700 transition hover:bg-white/80"
+                >
+                  Close
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleViewNewPage(viewingPage)}
+                  className="rounded-xl border border-white/70 bg-white/55 px-3 py-2 text-sm font-medium text-zinc-700 transition hover:bg-white/80"
+                >
+                  Live ↗
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const targetPage = viewingPage;
+                    closeView();
+                    openEdit(targetPage);
+                  }}
+                  className="rounded-xl bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-zinc-800"
+                >
+                  Edit
+                </button>
+              </div>
             </div>
-            {viewingPage.slug && (
-              <p className="mt-1 text-xs text-zinc-500">
-                Slug: /{viewingPage.slug}
-              </p>
-            )}
           </div>
-            
-          <button
-            type="button"
-            onClick={closeView}
-            className="rounded-xl px-3 py-1.5 text-xl font-semibold text-zinc-500 transition hover:bg-black/5 hover:text-zinc-800"
-          >
-            ×
-          </button>
         </div>
+      )}
 
-        {/* Content Body */}
-        <div className="prose max-w-none pt-6 text-zinc-800">
-          {viewingPage.content ? (
-            <div
-              dangerouslySetInnerHTML={{
-                __html: DOMPurify.sanitize(viewingPage.content),
-              }}
-            />
-          ) : (
-            <p className="italic text-zinc-400">No content available.</p>
-          )}
+      {/* Delete Confirmation Modal */}
+      {pageToDelete && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-zinc-950/40 px-4 backdrop-blur-sm">
+          <div className="glass-strong w-full max-w-md rounded-3xl p-6 sm:p-7 shadow-[0_24px_70px_rgba(0,0,0,0.2)]">
+            <div className="flex items-start gap-4">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-red-100 text-red-600">
+                <svg
+                  className="h-5 w-5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  strokeWidth="1.75"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"
+                  />
+                </svg>
+              </div>
+
+              <div className="min-w-0 flex-1">
+                <h3 className="text-base font-semibold text-zinc-900">
+                  Delete page
+                </h3>
+                <p className="mt-1 text-sm text-zinc-600">
+                  Are you sure you want to delete{" "}
+                  <span className="font-semibold text-zinc-900">
+                    &quot;{pageToDelete.title}&quot;
+                  </span>
+                  ? This action cannot be undone.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-6 flex flex-wrap items-center justify-end gap-2 border-t border-white/70 pt-4">
+              <button
+                type="button"
+                onClick={cancelDelete}
+                disabled={isDeleting}
+                className="rounded-xl border border-white/70 bg-white/55 px-4 py-2 text-sm font-medium text-zinc-700 transition hover:bg-white/80 disabled:opacity-40"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                onClick={executeDelete}
+                disabled={isDeleting}
+                className="rounded-xl bg-red-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {isDeleting ? "Deleting..." : "Delete"}
+              </button>
+            </div>
+          </div>
         </div>
-
-       {/* Footer */}
-        <div className="mt-8 flex flex-wrap items-center justify-end gap-2 border-t border-white/70 pt-4">
-        <button
-            type="button"
-            onClick={() => {
-              const targetPage = viewingPage;
-              closeView();
-              openEdit(targetPage);
-            }}
-            className="rounded-xl bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-zinc-800"
-          >
-            Edit
-          </button>
-          <button
-            type="button"
-            onClick={closeView}
-            className="rounded-xl border border-white/70 bg-white/55 px-3 py-2 text-sm font-medium text-zinc-700 transition hover:bg-white/80"
-          >
-            Close
-          </button>
-
-          
-        </div>
-      </div>
-    </div>
-  </div>
-)}
-{/* Delete Confirmation Modal */}
-{pageToDelete && (
-  <div className="fixed inset-0 z-[100] flex items-center justify-center bg-zinc-950/40 px-4 backdrop-blur-sm">
-    <div className="glass-strong w-full max-w-md rounded-3xl p-6 sm:p-7 shadow-[0_24px_70px_rgba(0,0,0,0.2)]">
-      <div className="flex items-start gap-4">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-red-100 text-red-600">
-          <svg
-            className="h-5 w-5"
-            fill="none"
-            viewBox="0 0 24 24"
-            strokeWidth="1.75"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"
-            />
-          </svg>
-        </div>
-
-        <div className="min-w-0 flex-1">
-          <h3 className="text-base font-semibold text-zinc-900">
-            Delete page
-          </h3>
-          <p className="mt-1 text-sm text-zinc-600">
-            Are you sure you want to delete{" "}
-            <span className="font-semibold text-zinc-900">
-              &quot;{pageToDelete.title}&quot;
-            </span>
-            ? This action cannot be undone.
-          </p>
-        </div>
-      </div>
-
-      <div className="mt-6 flex flex-wrap items-center justify-end gap-2 border-t border-white/70 pt-4">
-        <button
-          type="button"
-          onClick={cancelDelete}
-          disabled={isDeleting}
-          className="rounded-xl border border-white/70 bg-white/55 px-4 py-2 text-sm font-medium text-zinc-700 transition hover:bg-white/80 disabled:opacity-40"
-        >
-          Cancel
-        </button>
-
-        <button
-          type="button"
-          onClick={executeDelete}
-          disabled={isDeleting}
-          className="rounded-xl bg-red-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {isDeleting ? "Deleting..." : "Delete"}
-        </button>
-      </div>
-    </div>
-  </div>
-)}
+      )}
     </>
   );
 }

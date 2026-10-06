@@ -1,4 +1,5 @@
-import { notFound } from "next/navigation";
+import { cookies } from "next/headers";
+import { notFound, redirect } from "next/navigation";
 
 type Page = {
   id: string;
@@ -15,38 +16,43 @@ type PageResponse = {
   page: Page;
 };
 
-async function getPage(
-  slug: string,
-): Promise<Page | null> {
-  const apiUrl =
-    process.env.NEXT_PUBLIC_API_URL;
+async function getPage(slug: string): Promise<Page | null> {
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL;
 
   if (!apiUrl) {
-    throw new Error(
-      "NEXT_PUBLIC_API_URL is not configured.",
-    );
+    throw new Error("NEXT_PUBLIC_API_URL is not configured.");
   }
+
+  // 1. Forward client cookies so the backend knows if the user is logged in
+  const cookieStore = await cookies();
+  const cookieHeader = cookieStore.toString();
 
   const response = await fetch(
     `${apiUrl}/pages/${encodeURIComponent(slug)}`,
     {
       cache: "no-store",
+      headers: {
+        ...(cookieHeader ? { Cookie: cookieHeader } : {}),
+      },
     },
   );
 
+  // 2. Page doesn't exist
   if (response.status === 404) {
     return null;
   }
 
-  if (!response.ok) {
-    throw new Error(
-      "Unable to load page.",
-    );
+  // 3. Page is registered-only and user is unauthenticated or unauthorized
+  if (response.status === 401 || response.status === 403) {
+    redirect(`/login?callbackUrl=/${encodeURIComponent(slug)}`);
   }
 
-  const data =
-    (await response.json()) as PageResponse;
+  // 4. Any unexpected 500 error
+  if (!response.ok) {
+    throw new Error("Unable to load page.");
+  }
 
+  const data = (await response.json()) as PageResponse;
   return data.page ?? null;
 }
 
@@ -71,20 +77,21 @@ export default async function Page({
     <main className="min-h-screen px-4 py-10 sm:px-6 lg:px-8">
       <article className="glass mx-auto max-w-5xl rounded-3xl p-6 sm:p-8 lg:p-10">
         <header>
-          <h1 className="text-3xl font-semibold tracking-tight text-zinc-900 sm:text-4xl">
-            {page.title}
-          </h1>
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="text-3xl font-semibold tracking-tight text-zinc-900 sm:text-4xl">
+              {page.title}
+            </h1>
+
+            {page.visibility === "registered" && (
+              <span className="rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-700">
+                Registered Only
+              </span>
+            )}
+          </div>
 
           <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm text-zinc-500">
-            <span>
-              Created{" "}
-              {formatDate(page.createdAt)}
-            </span>
-
-            <span>
-              Updated{" "}
-              {formatDate(page.updatedAt)}
-            </span>
+            <span>Created {formatDate(page.createdAt)}</span>
+            <span>Updated {formatDate(page.updatedAt)}</span>
           </div>
         </header>
 
