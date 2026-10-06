@@ -1,4 +1,3 @@
-
 "use client";
 
 import axios from "axios";
@@ -10,6 +9,7 @@ import {
 
 import api from "@/lib/api";
 import type { User } from "@/lib/types";
+import { useNotification } from "@/components/notifications/notification-provider";
 
 type ProfileFormProps = {
   user: User;
@@ -64,9 +64,12 @@ function formatDateForInput(value?: string | null) {
 
   return "";
 }
+
 export default function ProfileForm({
   user,
 }: ProfileFormProps) {
+  const { showNotification } = useNotification();
+
   const [firstName, setFirstName] = useState(
     user.firstName ?? "",
   );
@@ -116,79 +119,62 @@ export default function ProfileForm({
   );
 
   const [profilePic, setProfilePic] = useState(
-  user.profilePic ?? "",
-);
+    user.profilePic ?? "",
+  );
 
-const [profileImageLoading, setProfileImageLoading] =
-  useState(false);
+  const [profileImageLoading, setProfileImageLoading] =
+    useState(false);
 
-const [showProfileImage, setShowProfileImage] =
-  useState(false);
+  const [showProfileImage, setShowProfileImage] =
+    useState(false);
 
   const [loading, setLoading] = useState(false);
-
-  const [popupMessage, setPopupMessage] =
-    useState("");
-
-  const [popupType, setPopupType] = useState<
-    "success" | "error" | ""
-  >("");
-
-  function showPopup(
-    message: string,
-    type: "success" | "error",
-  ) {
-    setPopupMessage(message);
-    setPopupType(type);
-  }
-
-  function closePopup() {
-    setPopupMessage("");
-    setPopupType("");
-  }
 
   async function handleSubmit(
     event: FormEvent<HTMLFormElement>,
   ) {
     event.preventDefault();
 
-    closePopup();
     setLoading(true);
 
     try {
+      const apiDateOfBirth =
+        formatDateForApi(dateOfBirth);
 
-    const apiDateOfBirth = formatDateForApi(dateOfBirth);
+      const response = await api.patch(
+        "/auth/me",
+        {
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          username: username.trim(),
+          email: email.trim(),
+          altEmail: altEmail.trim(),
+          phone: phone.trim(),
+          dateOfBirth: apiDateOfBirth,
+          addressLine1: addressLine1.trim(),
+          addressLine2: addressLine2.trim(),
+          city: city.trim(),
+          state: state.trim(),
+          pinCode: pinCode.trim(),
+        },
+      );
 
-console.log("Frontend DOB:", dateOfBirth);
-console.log("API DOB:", apiDateOfBirth);
-      await api.patch("/auth/me", {
-  firstName: firstName.trim(),
-  lastName: lastName.trim(),
-  username: username.trim(),
-  email: email.trim(),
-  altEmail: altEmail.trim(),
-  phone: phone.trim(),
-  dateOfBirth: formatDateForApi(dateOfBirth),
-  addressLine1: addressLine1.trim(),
-  addressLine2: addressLine2.trim(),
-  city: city.trim(),
-  state: state.trim(),
-  pinCode: pinCode.trim(),
-});
-      showPopup(
-        "Profile updated successfully.",
+      showNotification(
+        response.data?.message ??
+          "Profile updated successfully.",
         "success",
       );
     } catch (error) {
       if (axios.isAxiosError(error)) {
-        showPopup(
-          error.response?.data?.error ??
-            "Unable to update profile",
+        showNotification(
+          error.response?.data?.message ??
+            error.response?.data?.error ??
+            "Unable to update profile.",
           "error",
         );
       } else {
-        showPopup(
-          "Unable to connect to the server",
+        showNotification(
+          "Unable to connect to the server.",
           "error",
         );
       }
@@ -197,59 +183,58 @@ console.log("API DOB:", apiDateOfBirth);
     }
   }
 
-async function handleProfileImageUpload(
-  event: ChangeEvent<HTMLInputElement>,
-) {
-  const file = event.target.files?.[0];
+  async function handleProfileImageUpload(
+    event: ChangeEvent<HTMLInputElement>,
+  ) {
+    const file = event.target.files?.[0];
 
-  if (!file) {
-    return;
-  }
-
-  const formData = new FormData();
-  formData.append("profile_pic", file);
-
-  setProfileImageLoading(true);
-  closePopup();
-
-  try {
-    const response = await api.patch(
-      "/auth/me/image",
-      formData,
-    );
-
-    console.log(response.data);
-
-    showPopup(
-      response.data?.message ??
-        "Profile picture updated successfully.",
-      "success",
-    );
-
-    // Refresh the page so /auth/me provides the
-    // newly saved profilePic.
-    window.location.reload();
-  } catch (error) {
-    if (axios.isAxiosError(error)) {
-      showPopup(
-        error.response?.data?.error ??
-          error.response?.data?.message ??
-          "Unable to update profile picture.",
-        "error",
-      );
-    } else {
-      showPopup(
-        "Unable to connect to the server.",
-        "error",
-      );
+    if (!file) {
+      return;
     }
-  } finally {
-    setProfileImageLoading(false);
 
-    // Allow selecting the same file again.
-    event.target.value = "";
+    const formData = new FormData();
+
+    formData.append("profile_pic", file);
+
+    setProfileImageLoading(true);
+
+    try {
+      const response = await api.patch(
+        "/auth/me/image",
+        formData,
+      );
+
+      showNotification(
+        response.data?.message ??
+          "Profile picture updated successfully.",
+        "success",
+      );
+
+      // Refresh the page so /auth/me provides the
+      // newly saved profilePic.
+      window.location.reload();
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        showNotification(
+          error.response?.data?.message ??
+            error.response?.data?.error ??
+            "Unable to update profile picture.",
+          "error",
+        );
+      } else {
+        showNotification(
+          "Unable to connect to the server.",
+          "error",
+        );
+      }
+    } finally {
+      setProfileImageLoading(false);
+
+      // Allow selecting the same file again.
+      event.target.value = "";
+    }
   }
-}
+
   return (
     <>
       <form
@@ -258,66 +243,70 @@ async function handleProfileImageUpload(
       >
         {/* Profile Picture */}
 
-<section className="mb-6">
-  <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-    <div className="h-24 w-24 shrink-0 overflow-hidden rounded-full border border-white/80 bg-white/60 shadow-[0_8px_24px_rgba(31,38,135,0.08)]">
-  {profilePic ? (
-    <button
-      type="button"
-      onClick={() => setShowProfileImage(true)}
-      className="block h-full w-full cursor-zoom-in"
-      aria-label="View profile picture"
-    >
-      <img
-        src={`${process.env.NEXT_PUBLIC_API_URL?.replace(
-          "/api/v1",
-          "",
-        )}/${profilePic}`}
-        alt={`${firstName} ${lastName}`}
-        className="h-full w-full object-cover transition-transform duration-200 hover:scale-105"
-      />
-    </button>
-  ) : (
-    <div className="flex h-full w-full items-center justify-center text-2xl font-semibold text-zinc-500">
-      {firstName.charAt(0)}
-      {lastName.charAt(0)}
-    </div>
-  )}
-</div>
+        <section className="mb-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+            <div className="h-24 w-24 shrink-0 overflow-hidden rounded-full border border-white/80 bg-white/60 shadow-[0_8px_24px_rgba(31,38,135,0.08)]">
+              {profilePic ? (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setShowProfileImage(true)
+                  }
+                  className="block h-full w-full cursor-zoom-in"
+                  aria-label="View profile picture"
+                >
+                  <img
+                    src={`${process.env.NEXT_PUBLIC_API_URL?.replace(
+                      "/api/v1",
+                      "",
+                    )}/${profilePic}`}
+                    alt={`${firstName} ${lastName}`}
+                    className="h-full w-full object-cover transition-transform duration-200 hover:scale-105"
+                  />
+                </button>
+              ) : (
+                <div className="flex h-full w-full items-center justify-center text-2xl font-semibold text-zinc-500">
+                  {firstName.charAt(0)}
+                  {lastName.charAt(0)}
+                </div>
+              )}
+            </div>
 
-    <div>
-      <h2 className="text-base font-semibold">
-        Profile picture
-      </h2>
+            <div>
+              <h2 className="text-base font-semibold">
+                Profile picture
+              </h2>
 
-      <p className="mt-1 text-sm text-zinc-600">
-        Upload a new profile picture.
-      </p>
+              <p className="mt-1 text-sm text-zinc-600">
+                Upload a new profile picture.
+              </p>
 
-      <label
-  htmlFor="profile-picture"
-  className={`mt-3 inline-flex cursor-pointer items-center rounded-xl border border-zinc-300/70 bg-zinc-200/80 px-4 py-2.5 text-sm font-medium text-zinc-900 shadow-sm transition-colors hover:bg-zinc-300/80 ${
-    profileImageLoading
-      ? "pointer-events-none opacity-60"
-      : ""
-  }`}
->
-  {profileImageLoading ? "Uploading..." : "Change photo"}
-</label>
+              <label
+                htmlFor="profile-picture"
+                className={`mt-3 inline-flex cursor-pointer items-center rounded-xl border border-zinc-300/70 bg-zinc-200/80 px-4 py-2.5 text-sm font-medium text-zinc-900 shadow-sm transition-colors hover:bg-zinc-300/80 ${
+                  profileImageLoading
+                    ? "pointer-events-none opacity-60"
+                    : ""
+                }`}
+              >
+                {profileImageLoading
+                  ? "Uploading..."
+                  : "Change photo"}
+              </label>
 
-      <input
-        id="profile-picture"
-        type="file"
-        accept="image/*"
-        onChange={handleProfileImageUpload}
-        disabled={profileImageLoading}
-        className="hidden"
-      />
-    </div>
-  </div>
-</section>
+              <input
+                id="profile-picture"
+                type="file"
+                accept="image/*"
+                onChange={handleProfileImageUpload}
+                disabled={profileImageLoading}
+                className="hidden"
+              />
+            </div>
+          </div>
+        </section>
 
-<div className="mb-6 h-px bg-white/50" />
+        <div className="mb-6 h-px bg-white/50" />
 
         {/* Personal Information */}
 
@@ -404,7 +393,6 @@ async function handleProfileImageUpload(
                 setDateOfBirth(event.target.value)
               }
             />
-
           </div>
         </section>
 
@@ -487,85 +475,49 @@ async function handleProfileImageUpload(
             disabled={loading}
             className="h-11 rounded-xl bg-black px-5 text-sm font-medium text-white shadow-lg shadow-black/10 transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {loading ? "Saving..." : "Save changes"}
+            {loading
+              ? "Saving..."
+              : "Save changes"}
           </button>
         </div>
       </form>
 
-      {/* Backend message popup */}
+      {/* Profile image preview */}
 
-      {popupMessage && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+      {showProfileImage && profilePic && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4 backdrop-blur-sm">
           <button
             type="button"
-            aria-label="Close message"
-            className="absolute inset-0 bg-black/10 backdrop-blur-[2px]"
-            onClick={closePopup}
+            aria-label="Close profile picture"
+            onClick={() =>
+              setShowProfileImage(false)
+            }
+            className="absolute inset-0 cursor-default"
           />
 
-          <div
-            role="alert"
-            aria-live="polite"
-            className={`relative w-full max-w-sm rounded-2xl border p-5 shadow-[0_20px_50px_rgba(31,38,135,0.16)] backdrop-blur-2xl ${
-              popupType === "error"
-                ? "border-red-200/80 bg-red-50/75 text-red-800"
-                : "border-white/80 bg-white/75 text-zinc-800"
-            }`}
-          >
-            <div className="flex items-start gap-3">
-              {popupType === "error" && (
-                <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-red-100 text-xs font-semibold text-red-600">
-                  !
-                </div>
-              )}
+          <div className="relative max-h-[90vh] max-w-[90vw] rounded-3xl border border-white/80 bg-white/40 p-3 shadow-[0_24px_70px_rgba(31,38,135,0.22)] backdrop-blur-2xl">
+            <button
+              type="button"
+              onClick={() =>
+                setShowProfileImage(false)
+              }
+              aria-label="Close"
+              className="absolute right-3 top-3 z-10 flex h-9 w-9 items-center justify-center rounded-full border border-white/80 bg-white/70 text-lg text-zinc-700 shadow-sm backdrop-blur-xl transition hover:bg-white"
+            >
+              ×
+            </button>
 
-              <p className="min-w-0 flex-1 text-sm leading-6">
-                {popupMessage}
-              </p>
-
-              <button
-                type="button"
-                onClick={closePopup}
-                className="shrink-0 rounded-lg px-2 py-1 text-sm text-zinc-500 transition hover:bg-black/5 hover:text-zinc-800"
-                aria-label="Close"
-              >
-                ×
-              </button>
-            </div>
+            <img
+              src={`${process.env.NEXT_PUBLIC_API_URL?.replace(
+                "/api/v1",
+                "",
+              )}/${profilePic}`}
+              alt={`${firstName} ${lastName}`}
+              className="max-h-[82vh] max-w-[85vw] rounded-2xl object-contain"
+            />
           </div>
         </div>
       )}
-
-      {showProfileImage && profilePic && (
-  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4 backdrop-blur-sm">
-    <button
-      type="button"
-      aria-label="Close profile picture"
-      onClick={() => setShowProfileImage(false)}
-      className="absolute inset-0 cursor-default"
-    />
-
-    <div className="relative max-h-[90vh] max-w-[90vw] rounded-3xl border border-white/80 bg-white/40 p-3 shadow-[0_24px_70px_rgba(31,38,135,0.22)] backdrop-blur-2xl">
-      <button
-        type="button"
-        onClick={() => setShowProfileImage(false)}
-        aria-label="Close"
-        className="absolute right-3 top-3 z-10 flex h-9 w-9 items-center justify-center rounded-full border border-white/80 bg-white/70 text-lg text-zinc-700 shadow-sm backdrop-blur-xl transition hover:bg-white"
-      >
-        ×
-      </button>
-
-      <img
-        src={`${process.env.NEXT_PUBLIC_API_URL?.replace(
-          "/api/v1",
-          "",
-        )}/${profilePic}`}
-        alt={`${firstName} ${lastName}`}
-        className="max-h-[82vh] max-w-[85vw] rounded-2xl object-contain"
-      />
-    </div>
-  </div>
-)}
     </>
   );
 }
@@ -621,4 +573,3 @@ function ProfileField({
     </div>
   );
 }
-

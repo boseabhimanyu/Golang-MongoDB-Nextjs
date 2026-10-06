@@ -4,6 +4,7 @@ import axios from "axios";
 import { useEffect, useState } from "react";
 import { Switch } from "@headlessui/react";
 import api from "@/lib/api";
+import { useNotification } from "@/components/notifications/notification-provider";
 
 type MenuMaxDepth = {
   top: number;
@@ -35,6 +36,20 @@ const defaultSettings: Settings = {
   },
 };
 
+function getErrorMessage(
+  error: unknown,
+  fallback: string,
+) {
+  if (axios.isAxiosError(error)) {
+    return (
+      error.response?.data?.error ??
+      error.response?.data?.message ??
+      fallback
+    );
+  }
+
+  return fallback;
+}
 
 function ToggleRow({
   label,
@@ -58,7 +73,9 @@ function ToggleRow({
       <div className="min-w-0">
         <p
           className={`text-sm font-medium ${
-            enabled ? "text-green-900" : "text-red-900"
+            enabled
+              ? "text-green-900"
+              : "text-red-900"
           }`}
         >
           {label}
@@ -77,28 +94,27 @@ function ToggleRow({
         )}
       </div>
 
-<Switch
-  checked={enabled}
-  onChange={onChange}
-  aria-label={label}
-  className={`group relative inline-flex h-8 w-14 shrink-0 items-center rounded-full transition ${
-    enabled
-      ? "bg-green-500/80"
-      : "bg-red-400/80"
-  }`}
->
-  <span
-    className={`inline-block size-6 rounded-full bg-white shadow-md transition-transform ${
-      enabled
-        ? "translate-x-7"
-        : "translate-x-1"
-    }`}
-  />
-</Switch>
+      <Switch
+        checked={enabled}
+        onChange={onChange}
+        aria-label={label}
+        className={`group relative inline-flex h-8 w-14 shrink-0 items-center rounded-full transition ${
+          enabled
+            ? "bg-green-500/80"
+            : "bg-red-400/80"
+        }`}
+      >
+        <span
+          className={`inline-block size-6 rounded-full bg-white shadow-md transition-transform ${
+            enabled
+              ? "translate-x-7"
+              : "translate-x-1"
+          }`}
+        />
+      </Switch>
     </div>
   );
 }
-
 
 function MenuDepthSelect({
   label,
@@ -118,64 +134,76 @@ function MenuDepthSelect({
       <select
         value={value}
         onChange={(event) =>
-          onChange(Number(event.target.value))
+          onChange(
+            Number(event.target.value),
+          )
         }
         className="mt-2 h-11 w-full rounded-xl border border-white/70 bg-white/60 px-3 text-sm text-zinc-900 outline-none backdrop-blur-xl transition focus:border-white focus:ring-2 focus:ring-white/60"
       >
-        {[1, 2, 3, 4, 5].map((depth) => (
-          <option key={depth} value={depth}>
-            {depth}
-          </option>
-        ))}
+        {[1, 2, 3, 4, 5].map(
+          (depth) => (
+            <option
+              key={depth}
+              value={depth}
+            >
+              {depth}
+            </option>
+          ),
+        )}
       </select>
     </label>
   );
 }
 
 export default function SettingsPage() {
+  const { showNotification } =
+    useNotification();
+
   const [settings, setSettings] =
-    useState<Settings>(defaultSettings);
+    useState<Settings>(
+      defaultSettings,
+    );
 
-  const [originalSettings, setOriginalSettings] =
-    useState<Settings>(defaultSettings);
+  const [
+    originalSettings,
+    setOriginalSettings,
+  ] = useState<Settings>(
+    defaultSettings,
+  );
 
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [loading, setLoading] =
+    useState(true);
 
-  const [popupMessage, setPopupMessage] = useState("");
-  const [popupType, setPopupType] = useState<
-    "success" | "error" | ""
-  >("");
+  const [saving, setSaving] =
+    useState(false);
 
   useEffect(() => {
     async function loadSettings() {
       try {
-        const response = await api.get<Settings>(
-          "/admin/settings",
-        );
+        const response =
+          await api.get<Settings>(
+            "/admin/settings",
+          );
 
         setSettings(response.data);
-        setOriginalSettings(response.data);
+        setOriginalSettings(
+          response.data,
+        );
       } catch (error) {
-        if (axios.isAxiosError(error)) {
-          setPopupMessage(
-            error.response?.data?.error ??
-              "Unable to load settings.",
-          );
-        } else {
-          setPopupMessage(
-            "Unable to connect to the server.",
-          );
-        }
-
-        setPopupType("error");
+        showNotification(
+          getErrorMessage(
+            error,
+            "Unable to load settings.",
+          ),
+          "error",
+        );
       } finally {
         setLoading(false);
       }
     }
 
     loadSettings();
-  }, []);
+  }, [showNotification]);
 
   function updateSetting(
     key: keyof Settings,
@@ -201,21 +229,20 @@ export default function SettingsPage() {
   }
 
   function handleCancel() {
-    setSettings(originalSettings);
-    setPopupMessage("");
-    setPopupType("");
+    setSettings(
+      originalSettings,
+    );
   }
 
   async function handleSave() {
     setSaving(true);
-    setPopupMessage("");
-    setPopupType("");
 
     try {
-      const response = await api.patch(
-        "/admin/settings",
-        settings,
-      );
+      const response =
+        await api.patch(
+          "/admin/settings",
+          settings,
+        );
 
       const updatedSettings: Settings = {
         ...settings,
@@ -223,27 +250,23 @@ export default function SettingsPage() {
       };
 
       setSettings(updatedSettings);
-      setOriginalSettings(updatedSettings);
+      setOriginalSettings(
+        updatedSettings,
+      );
 
-      setPopupMessage(
+      showNotification(
         response.data?.message ??
           "Settings updated successfully.",
+        "success",
       );
-      setPopupType("success");
     } catch (error) {
-      if (axios.isAxiosError(error)) {
-        setPopupMessage(
-          error.response?.data?.error ??
-            error.response?.data?.message ??
-            "Unable to update settings.",
-        );
-      } else {
-        setPopupMessage(
-          "Unable to connect to the server.",
-        );
-      }
-
-      setPopupType("error");
+      showNotification(
+        getErrorMessage(
+          error,
+          "Unable to update settings.",
+        ),
+        "error",
+      );
     } finally {
       setSaving(false);
     }
@@ -289,7 +312,9 @@ export default function SettingsPage() {
             <ToggleRow
               label="Registration"
               description="Allow new users to create an account."
-              enabled={settings.registration_enabled}
+              enabled={
+                settings.registration_enabled
+              }
               onChange={(value) =>
                 updateSetting(
                   "registration_enabled",
@@ -315,7 +340,9 @@ export default function SettingsPage() {
           <div className="mt-5 space-y-3">
             <ToggleRow
               label="Primary email"
-              enabled={settings.login_with_primary_email}
+              enabled={
+                settings.login_with_primary_email
+              }
               onChange={(value) =>
                 updateSetting(
                   "login_with_primary_email",
@@ -326,7 +353,9 @@ export default function SettingsPage() {
 
             <ToggleRow
               label="Username"
-              enabled={settings.login_with_username}
+              enabled={
+                settings.login_with_username
+              }
               onChange={(value) =>
                 updateSetting(
                   "login_with_username",
@@ -337,7 +366,9 @@ export default function SettingsPage() {
 
             <ToggleRow
               label="Phone"
-              enabled={settings.login_with_phone}
+              enabled={
+                settings.login_with_phone
+              }
               onChange={(value) =>
                 updateSetting(
                   "login_with_phone",
@@ -348,7 +379,9 @@ export default function SettingsPage() {
 
             <ToggleRow
               label="Alternate email"
-              enabled={settings.login_with_alt_email}
+              enabled={
+                settings.login_with_alt_email
+              }
               onChange={(value) =>
                 updateSetting(
                   "login_with_alt_email",
@@ -375,7 +408,9 @@ export default function SettingsPage() {
             <ToggleRow
               label="Two-factor authentication"
               description="Enable the application's 2FA configuration."
-              enabled={settings.two_factor_enabled}
+              enabled={
+                settings.two_factor_enabled
+              }
               onChange={(value) =>
                 updateSetting(
                   "two_factor_enabled",
@@ -401,25 +436,40 @@ export default function SettingsPage() {
           <div className="mt-5 grid gap-4 sm:grid-cols-3">
             <MenuDepthSelect
               label="Top"
-              value={settings.menu_max_depth.top}
+              value={
+                settings.menu_max_depth.top
+              }
               onChange={(value) =>
-                updateMenuDepth("top", value)
+                updateMenuDepth(
+                  "top",
+                  value,
+                )
               }
             />
 
             <MenuDepthSelect
               label="Left"
-              value={settings.menu_max_depth.left}
+              value={
+                settings.menu_max_depth.left
+              }
               onChange={(value) =>
-                updateMenuDepth("left", value)
+                updateMenuDepth(
+                  "left",
+                  value,
+                )
               }
             />
 
             <MenuDepthSelect
               label="Bottom"
-              value={settings.menu_max_depth.bottom}
+              value={
+                settings.menu_max_depth.bottom
+              }
               onChange={(value) =>
-                updateMenuDepth("bottom", value)
+                updateMenuDepth(
+                  "bottom",
+                  value,
+                )
               }
             />
           </div>
@@ -441,21 +491,11 @@ export default function SettingsPage() {
             disabled={saving}
             className="h-11 rounded-xl bg-zinc-900 px-5 text-sm font-medium text-white shadow-lg shadow-black/10 transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {saving ? "Saving..." : "Save changes"}
+            {saving
+              ? "Saving..."
+              : "Save changes"}
           </button>
         </div>
-
-        {popupMessage && (
-          <div
-            className={`rounded-2xl border px-4 py-3 text-sm backdrop-blur-xl ${
-              popupType === "success"
-                ? "border-green-200/80 bg-green-50/70 text-green-800"
-                : "border-red-200/80 bg-red-50/70 text-red-800"
-            }`}
-          >
-            {popupMessage}
-          </div>
-        )}
       </div>
     </main>
   );
