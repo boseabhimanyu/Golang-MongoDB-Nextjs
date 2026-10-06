@@ -391,7 +391,7 @@ async function executeDelete() {
                       <button
                         type="button"
                         onClick={() =>
-                          openEdit(item)
+                          handleViewPage(item)
                         }
                         className="truncate text-left text-sm font-semibold text-zinc-900 underline-offset-4 transition hover:text-zinc-600 hover:underline"
                       >
@@ -694,15 +694,7 @@ async function executeDelete() {
 
        {/* Footer */}
         <div className="mt-8 flex flex-wrap items-center justify-end gap-2 border-t border-white/70 pt-4">
-          <button
-            type="button"
-            onClick={closeView}
-            className="rounded-xl border border-white/70 bg-white/55 px-3 py-2 text-sm font-medium text-zinc-700 transition hover:bg-white/80"
-          >
-            Close
-          </button>
-
-          <button
+        <button
             type="button"
             onClick={() => {
               const targetPage = viewingPage;
@@ -713,6 +705,15 @@ async function executeDelete() {
           >
             Edit
           </button>
+          <button
+            type="button"
+            onClick={closeView}
+            className="rounded-xl border border-white/70 bg-white/55 px-3 py-2 text-sm font-medium text-zinc-700 transition hover:bg-white/80"
+          >
+            Close
+          </button>
+
+          
         </div>
       </div>
     </div>
