@@ -1,11 +1,13 @@
 "use client";
 
 import axios from "axios";
+import DOMPurify from "dompurify";
 import {
   FormEvent,
   useEffect,
   useState,
 } from "react";
+import dynamic from "next/dynamic";
 
 import api from "@/lib/api";
 import { useNotification } from "@/components/notifications/notification-provider";
@@ -14,7 +16,19 @@ import type {
   PageVisibility,
   PagesResponse,
 } from "@/lib/types";
-import PageEditor from "@/components/pages/page-editor";
+
+// Dynamic import with SSR disabled to prevent hydration errors with TinyMCE
+const PageEditor = dynamic(
+  () => import("@/components/pages/page-editor"),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex min-h-[420px] items-center justify-center rounded-2xl border border-white/70 bg-white/40 text-sm text-zinc-500 backdrop-blur-xl">
+        Loading editor...
+      </div>
+    ),
+  }
+);
 
 type PageForm = {
   title: string;
@@ -71,9 +85,16 @@ export default function PagesManagement() {
   );
 
   const [saving, setSaving] = useState(false);
-  const [deletingId, setDeletingId] =
-    useState<string | null>(null);
-
+// State to track which page is pending confirmation
+const [pageToDelete, setPageToDelete] = useState<Page | null>(null);
+const [isDeleting, setIsDeleting] = useState(false);
+function confirmDelete(selectedPage: Page) {
+  setPageToDelete(selectedPage);
+}
+function cancelDelete() {
+  if (isDeleting) return;
+  setPageToDelete(null);
+}
   async function loadPages() {
     setLoading(true);
 
@@ -118,20 +139,12 @@ export default function PagesManagement() {
   }, [page, visibilityFilter]);
 
   function handleViewPage(selectedPage: Page) {
-    if (!selectedPage.slug) {
-      showNotification(
-        "This page does not have a slug.",
-        "error",
-      );
-      return;
-    }
+  setViewingPage(selectedPage);
+}
 
-    window.open(
-      `/${selectedPage.slug}`,
-      "_blank",
-      "noopener,noreferrer",
-    );
-  }
+function closeView() {
+  setViewingPage(null);
+}
 
   function openCreate() {
     setEditingPage(null);
@@ -250,50 +263,35 @@ export default function PagesManagement() {
     }
   }
 
-  async function handleDelete(
-    selectedPage: Page,
-  ) {
-    const confirmed = window.confirm(
-      `Delete "${selectedPage.title}"?`,
+async function executeDelete() {
+  if (!pageToDelete) return;
+
+  setIsDeleting(true);
+
+  try {
+    const response = await api.delete(`/admin/pages/${pageToDelete.id}`);
+
+    showNotification(
+      response.data?.message ?? "Page deleted successfully.",
+      "success",
     );
 
-    if (!confirmed) {
-      return;
+    setPageToDelete(null);
+
+    if (pages.length === 1 && page > 1) {
+      setPage((current) => current - 1);
+    } else {
+      await loadPages();
     }
-
-    setDeletingId(selectedPage.id);
-
-    try {
-      const response = await api.delete(
-        `/admin/pages/${selectedPage.id}`,
-      );
-
-      showNotification(
-        response.data?.message ??
-          "Page deleted successfully.",
-        "success",
-      );
-
-      if (
-        pages.length === 1 &&
-        page > 1
-      ) {
-        setPage((current) => current - 1);
-      } else {
-        await loadPages();
-      }
-    } catch (error) {
-      showNotification(
-        getErrorMessage(
-          error,
-          "Unable to delete page.",
-        ),
-        "error",
-      );
-    } finally {
-      setDeletingId(null);
-    }
+  } catch (error) {
+    showNotification(
+      getErrorMessage(error, "Unable to delete page."),
+      "error",
+    );
+  } finally {
+    setIsDeleting(false);
   }
+}
 
   const filteredPages = pages.filter((item) => {
     const query = search.trim().toLowerCase();
@@ -393,7 +391,7 @@ export default function PagesManagement() {
                       <button
                         type="button"
                         onClick={() =>
-                          handleViewPage(item)
+                          openEdit(item)
                         }
                         className="truncate text-left text-sm font-semibold text-zinc-900 underline-offset-4 transition hover:text-zinc-600 hover:underline"
                       >
@@ -414,17 +412,7 @@ export default function PagesManagement() {
                           : "Registered"}
                       </span>
                     </div>
-
-                    <button
-                      type="button"
-                      onClick={() =>
-                        handleViewPage(item)
-                      }
-                      className="mt-1 block truncate text-left text-sm text-zinc-500 transition hover:text-zinc-800 hover:underline"
-                    >
-                      /{item.slug}
-                    </button>
-
+                          
                     <p className="mt-1 text-xs text-zinc-400">
                       Updated{" "}
                       {new Date(
@@ -455,19 +443,12 @@ export default function PagesManagement() {
                     </button>
 
                     <button
-                      type="button"
-                      onClick={() =>
-                        handleDelete(item)
-                      }
-                      disabled={
-                        deletingId === item.id
-                      }
-                      className="rounded-xl border border-red-200/70 bg-red-50/60 px-3 py-2 text-sm font-medium text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      {deletingId === item.id
-                        ? "Deleting..."
-                        : "Delete"}
-                    </button>
+  type="button"
+  onClick={() => confirmDelete(item)}
+  className="rounded-xl border border-red-200/70 bg-red-50/60 px-3 py-2 text-sm font-medium text-red-700 transition hover:bg-red-50"
+>
+  Delete
+</button>
                   </div>
                 </div>
               ))}
@@ -660,6 +641,140 @@ export default function PagesManagement() {
           </div>
         </div>
       )}
+      {/* Preview Modal */}
+{viewingPage && (
+  <div className="fixed inset-0 z-[90] overflow-y-auto bg-zinc-950/30 px-4 py-8 backdrop-blur-sm">
+    <div className="mx-auto max-w-4xl">
+      <div className="glass-strong rounded-3xl p-6 sm:p-8">
+        {/* Header */}
+        <div className="flex items-start justify-between gap-4 border-b border-white/70 pb-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="text-xl font-bold tracking-tight text-zinc-900">
+                {viewingPage.title}
+              </h2>
+              <span
+                className={
+                  viewingPage.visibility === "public"
+                    ? "rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-700"
+                    : "rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-700"
+                }
+              >
+                {viewingPage.visibility === "public" ? "Public" : "Registered"}
+              </span>
+            </div>
+            {viewingPage.slug && (
+              <p className="mt-1 text-xs text-zinc-500">
+                Slug: /{viewingPage.slug}
+              </p>
+            )}
+          </div>
+            
+          <button
+            type="button"
+            onClick={closeView}
+            className="rounded-xl px-3 py-1.5 text-xl font-semibold text-zinc-500 transition hover:bg-black/5 hover:text-zinc-800"
+          >
+            ×
+          </button>
+        </div>
+
+        {/* Content Body */}
+        <div className="prose max-w-none pt-6 text-zinc-800">
+          {viewingPage.content ? (
+            <div
+              dangerouslySetInnerHTML={{
+                __html: DOMPurify.sanitize(viewingPage.content),
+              }}
+            />
+          ) : (
+            <p className="italic text-zinc-400">No content available.</p>
+          )}
+        </div>
+
+       {/* Footer */}
+        <div className="mt-8 flex flex-wrap items-center justify-end gap-2 border-t border-white/70 pt-4">
+          <button
+            type="button"
+            onClick={closeView}
+            className="rounded-xl border border-white/70 bg-white/55 px-3 py-2 text-sm font-medium text-zinc-700 transition hover:bg-white/80"
+          >
+            Close
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              const targetPage = viewingPage;
+              closeView();
+              openEdit(targetPage);
+            }}
+            className="rounded-xl bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-zinc-800"
+          >
+            Edit
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+)}
+{/* Delete Confirmation Modal */}
+{pageToDelete && (
+  <div className="fixed inset-0 z-[100] flex items-center justify-center bg-zinc-950/40 px-4 backdrop-blur-sm">
+    <div className="glass-strong w-full max-w-md rounded-3xl p-6 sm:p-7 shadow-[0_24px_70px_rgba(0,0,0,0.2)]">
+      <div className="flex items-start gap-4">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-red-100 text-red-600">
+          <svg
+            className="h-5 w-5"
+            fill="none"
+            viewBox="0 0 24 24"
+            strokeWidth="1.75"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"
+            />
+          </svg>
+        </div>
+
+        <div className="min-w-0 flex-1">
+          <h3 className="text-base font-semibold text-zinc-900">
+            Delete page
+          </h3>
+          <p className="mt-1 text-sm text-zinc-600">
+            Are you sure you want to delete{" "}
+            <span className="font-semibold text-zinc-900">
+              &quot;{pageToDelete.title}&quot;
+            </span>
+            ? This action cannot be undone.
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-6 flex flex-wrap items-center justify-end gap-2 border-t border-white/70 pt-4">
+        <button
+          type="button"
+          onClick={cancelDelete}
+          disabled={isDeleting}
+          className="rounded-xl border border-white/70 bg-white/55 px-4 py-2 text-sm font-medium text-zinc-700 transition hover:bg-white/80 disabled:opacity-40"
+        >
+          Cancel
+        </button>
+
+        <button
+          type="button"
+          onClick={executeDelete}
+          disabled={isDeleting}
+          className="rounded-xl bg-red-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {isDeleting ? "Deleting..." : "Delete"}
+        </button>
+      </div>
+    </div>
+  </div>
+)}
     </>
   );
 }
