@@ -22,12 +22,16 @@ func init() {
 	)
 
 	// Links
+	policy.RequireParseableURLs(true) // Crucial! Enforces URL validation
 	policy.AllowAttrs("href").OnElements("a")
 
 	//policy.AllowStandardURLs()
 
 	//only allow from https urls
 	policy.AllowURLSchemes("https")
+
+	policy.RequireNoFollowOnLinks(true) // Optional: Prevents SEO spam abuse
+	//policy.RequireNoReferrerOnLinks(true) // Optional: Protects user privacy
 
 	// Images
 	policy.AllowAttrs(

@@ -51,7 +51,6 @@ func (s *TOTPService) VerifyCode(secret string, code string) error {
 	if secret == "" || code == "" {
 		return apperrors.ErrInvalidTOTPCode
 	}
-
 	// Below log.Printf has to be deleted/changed once topt error is solved.
 	opts := totp.ValidateOpts{
 		Period:    30,
@@ -60,19 +59,21 @@ func (s *TOTPService) VerifyCode(secret string, code string) error {
 		Algorithm: otp.AlgorithmSHA1,
 	}
 
+	// IMPORTANT: use exactly one timestamp for the entire verification.
+	now := time.Now().UTC()
+
 	currentCode, err := totp.GenerateCodeCustom(
 		secret,
-		time.Now().UTC(),
+		now,
 		opts,
 	)
 	if err != nil {
 		return err
 	}
-
 	// Below log.Printf has to be deleted/changed once topt error is solved.
 	previousCode, err := totp.GenerateCodeCustom(
 		secret,
-		time.Now().UTC().Add(-30*time.Second),
+		now.Add(-30*time.Second),
 		opts,
 	)
 	if err != nil {
@@ -81,7 +82,7 @@ func (s *TOTPService) VerifyCode(secret string, code string) error {
 
 	nextCode, err := totp.GenerateCodeCustom(
 		secret,
-		time.Now().UTC().Add(30*time.Second),
+		now.Add(30*time.Second),
 		opts,
 	)
 	if err != nil {
@@ -91,23 +92,35 @@ func (s *TOTPService) VerifyCode(secret string, code string) error {
 	valid, err := totp.ValidateCustom(
 		code,
 		secret,
-		time.Now().UTC(),
+		now,
 		opts,
 	)
-
 	// Below log.Printf has to be deleted/changed once topt error is solved.
 	if err != nil {
 		return err
 	}
 
+	matched := "none"
+
+	switch code {
+	case previousCode:
+		matched = "previous"
+	case currentCode:
+		matched = "current"
+	case nextCode:
+		matched = "next"
+	}
+
+	remaining := 30 - (now.Unix() % 30)
+	timeStep := now.Unix() / 30
+
 	log.Printf(
-		"TOTP diagnostic: unix=%d second=%d supplied=%s previous=%s current=%s next=%s valid=%v",
-		time.Now().UTC().Unix(),
-		time.Now().UTC().Second(),
-		code,
-		previousCode,
-		currentCode,
-		nextCode,
+		"TOTP diagnostic: unix=%d timestep=%d second=%d remaining=%ds matched=%s valid=%v",
+		now.Unix(),
+		timeStep,
+		now.Second(),
+		remaining,
+		matched,
 		valid,
 	)
 	// 	| Skew | Accepted windows | Approx. tolerance |

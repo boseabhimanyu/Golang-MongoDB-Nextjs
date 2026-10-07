@@ -325,17 +325,24 @@ export default function SecurityForm({
     }
   }
 
-  async function copyBackupCodes() {
+    async function copyBackupCodes() {
     try {
       await navigator.clipboard.writeText(
         backupCodes.join("\n"),
       );
 
       setCopied(true);
+
+      // Automatically resets the "Copied" status after 2 seconds
+      window.setTimeout(() => {
+        setCopied(false);
+      }, 2000);
+      
     } catch {
       setCopied(false);
     }
   }
+
 
   function closeBackupCodes() {
     setShowBackupCodes(false);

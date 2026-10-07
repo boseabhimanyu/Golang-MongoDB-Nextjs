@@ -341,14 +341,26 @@ export default function PagesManagement() {
 
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <h2 className="text-lg font-semibold tracking-tight text-zinc-900">
-                Pages
-              </h2>
-              <p className="mt-1 text-sm text-zinc-600">
-                Manage website content and page visibility.
-              </p>
+              <select
+            value={visibilityFilter}
+            onChange={(event) => {
+              setVisibilityFilter(event.target.value as "" | PageVisibility);
+              setPage(1);
+            }}
+            className="rounded-xl border border-white/80 bg-white/95 px-4 py-2.5 text-sm outline-none backdrop-blur-xl"
+          >
+            <option value="">All visibility</option>
+            <option value="public">Public</option>
+            <option value="registered">Registered</option>
+          </select>
             </div>
-
+<input
+            type="search"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search pages..."
+            className="min-w-0 flex-1 rounded-xl border border-white/80 bg-white/95 px-4 py-2.5 text-sm outline-none backdrop-blur-xl transition focus:border-zinc-300 focus:bg-white/75"
+          />
             <button
               type="button"
               onClick={openCreate}
@@ -361,26 +373,9 @@ export default function PagesManagement() {
 
         {/* Search & Visibility Filters */}
         <div className="mt-6 flex flex-col gap-3 md:flex-row">
-          <input
-            type="search"
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search pages..."
-            className="min-w-0 flex-1 rounded-xl border border-white/80 bg-white/55 px-4 py-2.5 text-sm outline-none backdrop-blur-xl transition focus:border-zinc-300 focus:bg-white/75"
-          />
+          
 
-          <select
-            value={visibilityFilter}
-            onChange={(event) => {
-              setVisibilityFilter(event.target.value as "" | PageVisibility);
-              setPage(1);
-            }}
-            className="rounded-xl border border-white/80 bg-white/55 px-4 py-2.5 text-sm outline-none backdrop-blur-xl"
-          >
-            <option value="">All visibility</option>
-            <option value="public">Public</option>
-            <option value="registered">Registered</option>
-          </select>
+          
         </div>
 
         {/* Table List Section */}
