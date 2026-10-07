@@ -10,6 +10,7 @@ import (
 	"basic-app/dto"
 	"basic-app/models"
 	"basic-app/repository"
+	"basic-app/sanitizer"
 	"basic-app/utils"
 )
 
@@ -30,6 +31,8 @@ func (s *PageService) Create(
 	page *models.Page,
 ) error {
 	page.Title = strings.TrimSpace(page.Title)
+
+	page.Content = sanitizer.Sanitize(page.Content)
 	page.Content = strings.TrimSpace(page.Content)
 
 	if page.Title == "" || page.Content == "" {
@@ -144,7 +147,8 @@ func (s *PageService) Update(
 	}
 
 	if req.Content != nil {
-		page.Content = *req.Content
+		page.Content = sanitizer.Sanitize(*req.Content)
+		page.Content = strings.TrimSpace(page.Content)
 	}
 
 	if req.Visibility != nil {
@@ -162,7 +166,6 @@ func (s *PageService) Update(
 				return nil, apperrors.ErrInvalidSlug
 			}
 
-			// Automatically generated slug can use suffixes.
 			slug, err = s.generateUniqueSlug(
 				ctx,
 				slug,
@@ -174,7 +177,6 @@ func (s *PageService) Update(
 
 			page.Slug = slug
 		} else {
-			// Explicitly supplied slug must not silently change.
 			existingPage, err := s.pageRepository.FindBySlug(
 				ctx,
 				slug,
@@ -185,7 +187,6 @@ func (s *PageService) Update(
 					return nil, err
 				}
 			} else {
-				// Another page already owns this slug.
 				if existingPage.ID.Hex() != page.ID.Hex() {
 					return nil, apperrors.ErrSlugAlreadyExists
 				}
