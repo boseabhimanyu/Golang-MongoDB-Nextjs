@@ -580,7 +580,7 @@
                 "header": [],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"new_password\": \"Cat@1234\"\n}",
+                  "raw": "{\n  \"newPassword\": \"Cat@1234\"\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -588,7 +588,7 @@
                   }
                 },
                 "url": {
-                  "raw": "http://localhost:{{port}}/api/v1/customers/6aacd6c40c86884d2b54e5fa/password",
+                  "raw": "http://localhost:{{port}}/api/v1/customers/6ac8ea3a4a482e9c1907e65f/password",
                   "protocol": "http",
                   "host": [
                     "localhost"
@@ -598,7 +598,7 @@
                     "api",
                     "v1",
                     "customers",
-                    "6aacd6c40c86884d2b54e5fa",
+                    "6ac8ea3a4a482e9c1907e65f",
                     "password"
                   ]
                 }
