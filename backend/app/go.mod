@@ -10,6 +10,7 @@ require (
 	github.com/joho/godotenv v1.5.1
 	github.com/microcosm-cc/bluemonday v1.0.27
 	github.com/pquerna/otp v1.5.0
+	github.com/unrolled/secure v1.17.0
 	go.mongodb.org/mongo-driver/v2 v2.8.2
 	golang.org/x/crypto v0.57.0
 	golang.org/x/text v0.42.0

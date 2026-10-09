@@ -46,11 +46,21 @@ func NewRouter(
 			"Content-Type",
 			"Accept",
 			"Authorization",
-			// "X-Request-ID",
+			// "X-Request-ID", // Uncomment these when you want request ID
 		},
 
 		AllowCredentials: true,
 	}))
+
+	// -------------------------------------------------------------
+	// Security Headers (Runs 2nd, right after CORS)
+	// -------------------------------------------------------------
+	// Development: set ENV=development to disable HTTPS redirection.
+	// Production: configure HTTPS before enabling SSLRedirect and HSTS.
+
+	// r.Use(middleware.SecurityMiddleware()) //uncomment to enable security module
+	// run ENV=development air for development environment
+	// run ENV=production air for production environment
 
 	// Custom middleware.
 	// Uncomment these when you want request ID and structured logging.
@@ -282,16 +292,16 @@ func NewRouter(
 	// Customer routes
 	// ------------------------------------------------------------------
 
-	customerRoutes := r.Group("/api/v1/customers")
+	adminRoutes := r.Group("/api/v1/customers")
 
-	customerRoutes.Use(
+	adminRoutes.Use(
 		authMiddleware,
 		auth.RequireRoles("admin"),
 	)
 
-	customerRoutes.POST("", userHandler.CreateCustomer)
+	adminRoutes.POST("", userHandler.CreateCustomer)
 	//--------------------------------------------------------------
-	customerRoutes.GET("", userHandler.ListCustomers)
+	adminRoutes.GET("", userHandler.ListCustomers)
 	// List customers.
 	//
 	// Pagination:
@@ -309,11 +319,11 @@ func NewRouter(
 	// GET /api/v1/customers?page=1&limit=20&status=true&search=rahul
 
 	//--------------------------------------------------------------
-	customerRoutes.GET("/:id", userHandler.GetCustomerByID)
-	customerRoutes.PATCH("/:id", userHandler.UpdateCustomer)
-	customerRoutes.PATCH("/:id/status", userHandler.UpdateUserStatus)
-	customerRoutes.PATCH("/:id/password", userHandler.ChangeUserPassword)
-	customerRoutes.POST("/:id/2fa/reset", authHandler.AdminResetTwoFactor)
+	adminRoutes.GET("/:id", userHandler.GetCustomerByID)
+	adminRoutes.PATCH("/:id", userHandler.UpdateCustomer)
+	adminRoutes.PATCH("/:id/status", userHandler.UpdateUserStatus)
+	adminRoutes.PATCH("/:id/password", userHandler.ChangeUserPassword)
+	adminRoutes.POST("/:id/2fa/reset", authHandler.AdminResetTwoFactor)
 	// ------------------------------------------------------------------
 	// Application settings
 	// ------------------------------------------------------------------
