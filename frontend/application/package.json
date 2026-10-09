@@ -10,10 +10,13 @@
     "postinstall": "mkdir -p public/tinymce && cp -r node_modules/tinymce/skins node_modules/tinymce/icons node_modules/tinymce/themes node_modules/tinymce/models node_modules/tinymce/plugins node_modules/tinymce/tinymce.min.js public/tinymce/"
   },
   "dependencies": {
+    "@dnd-kit/helpers": "^0.5.0",
+    "@dnd-kit/react": "^0.5.0",
     "@headlessui/react": "^2.2.10",
     "@tinymce/tinymce-react": "^6.3.0",
     "axios": "^1.20.0",
     "dompurify": "^3.4.16",
+    "lucide-react": "^1.53.0",
     "next": "16.3.8",
     "qrcode": "^1.5.4",
     "react": "19.2.8",

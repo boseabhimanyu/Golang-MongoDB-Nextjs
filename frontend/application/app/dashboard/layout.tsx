@@ -77,12 +77,20 @@ export default async function DashboardLayout({
   Pages
 </Link>
 )}
-    {user?.role === "admin" && (
+{user?.role === "admin" && (
   <Link
     href="/dashboard/settings"
     className="block rounded-xl px-3 py-2.5 text-sm font-medium transition-colors hover:bg-white/50"
   >
     Settings
+  </Link>
+)}
+{user?.role === "admin" && (
+  <Link
+    href="/dashboard/menus"
+    className="block rounded-xl px-3 py-2.5 text-sm font-medium transition-colors hover:bg-white/50"
+  >
+    Menu Settings
   </Link>
 )}
   </div>

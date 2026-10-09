@@ -2,19 +2,6 @@
 
 import { Editor } from "@tinymce/tinymce-react";
 
-// Import core TinyMCE bundle
-import "tinymce/tinymce";
-import "tinymce/models/dom/model";
-import "tinymce/themes/silver";
-import "tinymce/icons/default";
-
-// Import only the plugins you need
-import "tinymce/plugins/lists";
-import "tinymce/plugins/link";
-import "tinymce/plugins/image";
-import "tinymce/plugins/autolink";
-import "tinymce/plugins/visualblocks";
-import "tinymce/plugins/wordcount";
 
 type PageEditorProps = {
   initialContent: string;
@@ -29,8 +16,8 @@ export default function PageEditor({
     <div className="overflow-hidden rounded-2xl border border-white/70 bg-white/55 shadow-[0_12px_35px_rgba(31,38,135,0.06)] backdrop-blur-2xl">
       <Editor
         tinymceScriptSrc="/tinymce/tinymce.min.js"
-        licenseKey="gpl" // TinyMCE 7+ open-source license indicator
-        initialValue={initialContent}
+        licenseKey="gpl" 
+        value={initialContent} 
         onEditorChange={(newContent) => {
           onChange(newContent);
         }}
@@ -45,15 +32,16 @@ export default function PageEditor({
             "autolink",
             "visualblocks",
             "wordcount",
+            "code", // Will now correctly load from your public folder setup
           ],
           toolbar:
-            "bold italic strikethrough | " +
+            "undo redo | " +
+            "bold italic strikethrough forecolor backcolor | " +
             "h1 h2 h3 | " +
             "alignleft aligncenter alignright alignjustify | " +
             "bullist numlist | " +
             "blockquote | " +
-            "image | " +
-            "undo redo",
+            "image | code", // Added code to toolbar so you can actually click it!
           skin_url: "/tinymce/skins/ui/oxide",
           content_css: "/tinymce/skins/content/default/content.min.css",
           content_style: `
