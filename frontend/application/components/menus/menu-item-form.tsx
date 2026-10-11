@@ -50,7 +50,10 @@ export default function MenuItemForm({
   onClose,
   onSaved,
 }: MenuItemFormProps) {
-  const [form, setForm] = useState<FormState>(initialState(item));
+  const [form, setForm] = useState<FormState>(
+    initialState(item),
+  );
+
   const [pages, setPages] = useState<PageOption[]>([]);
   const [loadingPages, setLoadingPages] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -60,6 +63,7 @@ export default function MenuItemForm({
 
   useEffect(() => {
     setForm(initialState(item));
+    setError("");
   }, [item]);
 
   useEffect(() => {
@@ -74,18 +78,18 @@ export default function MenuItemForm({
         setLoadingPages(true);
 
         const response = await api.get("/admin/pages");
-
         const payload = response.data;
 
         const rawPages =
           payload?.pages ??
+          payload?.data?.pages ??
           payload?.data ??
           payload?.items ??
           [];
 
         const normalized: PageOption[] = Array.isArray(rawPages)
           ? rawPages.map((page: any) => ({
-              id: page.id,
+              id: page.id ?? page._id,
               title: page.title ?? "",
               slug: page.slug ?? "",
             }))
@@ -94,7 +98,9 @@ export default function MenuItemForm({
         if (!cancelled) {
           setPages(normalized);
         }
-      } catch {
+      } catch (err) {
+        console.error("Unable to load pages:", err);
+
         if (!cancelled) {
           setPages([]);
         }
@@ -105,7 +111,7 @@ export default function MenuItemForm({
       }
     }
 
-    loadPages();
+    void loadPages();
 
     return () => {
       cancelled = true;
@@ -126,7 +132,6 @@ export default function MenuItemForm({
     event: React.FormEvent<HTMLFormElement>,
   ) {
     event.preventDefault();
-
     setError("");
 
     if (!form.label.trim()) {
@@ -168,9 +173,9 @@ export default function MenuItemForm({
         payload.parentId = form.parentId;
       }
 
-      if (editing) {
+      if (editing && item) {
         await api.patch(
-          `/admin/menus/${menuId}/items/${item!.id}`,
+          `/admin/menus/${menuId}/items/${item.id}`,
           payload,
         );
       } else {
@@ -182,6 +187,8 @@ export default function MenuItemForm({
 
       onSaved();
     } catch (err: any) {
+      console.error("Unable to save menu item:", err);
+
       setError(
         err?.response?.data?.message ??
           "Unable to save the menu item.",
@@ -201,7 +208,7 @@ export default function MenuItemForm({
             </h2>
 
             <p className="mt-1 text-xs text-zinc-500">
-              Add a group, page, or external URL.
+              Add or update a group, page, or external URL.
             </p>
           </div>
 
@@ -209,6 +216,7 @@ export default function MenuItemForm({
             type="button"
             onClick={onClose}
             className="rounded-lg p-2 text-zinc-500 hover:bg-zinc-100"
+            aria-label="Close form"
           >
             <X className="h-5 w-5" />
           </button>
@@ -225,6 +233,7 @@ export default function MenuItemForm({
               onChange={(event) =>
                 update("label", event.target.value)
               }
+              required
               className="w-full rounded-xl border border-zinc-300 px-3 py-2.5 text-sm outline-none focus:border-zinc-500 focus:ring-2 focus:ring-zinc-200"
               placeholder="About Us"
             />
@@ -237,14 +246,13 @@ export default function MenuItemForm({
 
             <select
               value={form.type}
-              disabled={editing}
-              onChange={(event) =>
+              onChange={(event) => {
                 update(
                   "type",
                   event.target.value as MenuItemType,
-                )
-              }
-              className="w-full rounded-xl border border-zinc-300 px-3 py-2.5 text-sm outline-none focus:border-zinc-500 focus:ring-2 focus:ring-zinc-200 disabled:bg-zinc-100"
+                );
+              }}
+              className="w-full rounded-xl border border-zinc-300 px-3 py-2.5 text-sm outline-none focus:border-zinc-500 focus:ring-2 focus:ring-zinc-200"
             >
               <option value="group">Group</option>
               <option value="page">Page</option>
@@ -275,7 +283,7 @@ export default function MenuItemForm({
               </select>
 
               <p className="mt-1.5 text-xs text-zinc-500">
-                Child items can only belong to a group in this menu.
+                Child items can belong to a group in this menu.
               </p>
             </div>
           )}
@@ -292,6 +300,7 @@ export default function MenuItemForm({
                   update("pageId", event.target.value)
                 }
                 disabled={loadingPages}
+                required
                 className="w-full rounded-xl border border-zinc-300 px-3 py-2.5 text-sm outline-none focus:border-zinc-500 focus:ring-2 focus:ring-zinc-200 disabled:bg-zinc-100"
               >
                 <option value="">
@@ -322,6 +331,7 @@ export default function MenuItemForm({
                 onChange={(event) =>
                   update("url", event.target.value)
                 }
+                required
                 className="w-full rounded-xl border border-zinc-300 px-3 py-2.5 text-sm outline-none focus:border-zinc-500 focus:ring-2 focus:ring-zinc-200"
                 placeholder="https://example.com"
               />
@@ -333,10 +343,7 @@ export default function MenuItemForm({
               type="checkbox"
               checked={form.displayStatus}
               onChange={(event) =>
-                update(
-                  "displayStatus",
-                  event.target.checked,
-                )
+                update("displayStatus", event.target.checked)
               }
               className="h-4 w-4 rounded border-zinc-300"
             />
@@ -345,6 +352,7 @@ export default function MenuItemForm({
               <span className="block text-sm font-medium text-zinc-800">
                 Display item
               </span>
+
               <span className="block text-xs text-zinc-500">
                 Hidden items remain in the menu but are not displayed.
               </span>
@@ -368,7 +376,7 @@ export default function MenuItemForm({
 
             <button
               type="submit"
-              disabled={saving}
+              disabled={saving || loadingPages && form.type === "page"}
               className="rounded-xl bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {saving

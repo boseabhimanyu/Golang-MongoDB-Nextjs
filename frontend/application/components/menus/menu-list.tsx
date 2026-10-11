@@ -197,7 +197,7 @@ export default function MenuList({
               {menu ? (
                 <div className="flex flex-wrap gap-2">
                   <Link
-                    href={`/settings/menus/${menu.id}`}
+                    href={`/dashboard/menus/${menu.id}`}
                     className="inline-flex items-center justify-center gap-2 rounded-xl border border-zinc-300 px-4 py-2.5 text-sm font-medium text-zinc-800 transition hover:bg-zinc-50"
                   >
                     Manage
