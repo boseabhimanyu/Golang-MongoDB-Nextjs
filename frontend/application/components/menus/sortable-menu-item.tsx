@@ -140,18 +140,19 @@ export default function SortableMenuItem({
             )}
           </div>
 
-          {item.type === "url" && item.url && (
-            <p className="mt-0.5 truncate text-xs text-zinc-400">
-              {item.url}
-            </p>
-          )}
+          {item.url && (
+  <p className="mt-0.5 truncate text-xs text-zinc-400">
+    {item.url}
+  </p>
+)}
 
-          {item.type === "page" && item.pageId && (
-            <p className="mt-0.5 truncate text-xs text-zinc-400">
-              Page: {item.pageId}
-            </p>
-          )}
-        </div>
+{item.pageId && (
+  <p className="mt-0.5 truncate text-xs text-zinc-400">
+    Page: {item.pageId}
+  </p>
+)}
+
+       </div>
 
         {/* Edit */}
         <button

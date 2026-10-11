@@ -15,6 +15,8 @@ type PageOption = {
   slug: string;
 };
 
+type GroupDestination = "none" | "page" | "url";
+
 type MenuItemFormProps = {
   menuId: string;
   item?: MenuItem | null;
@@ -30,16 +32,28 @@ type FormState = {
   url: string;
   parentId: string;
   displayStatus: boolean;
+  groupDestination: GroupDestination;
 };
 
 function initialState(item?: MenuItem | null): FormState {
+  const pageId = item?.pageId ?? "";
+  const url = item?.url ?? "";
+
   return {
     label: item?.label ?? "",
     type: item?.type ?? "group",
-    pageId: item?.pageId ?? "",
-    url: item?.url ?? "",
+    pageId,
+    url,
     parentId: "",
     displayStatus: item?.displayStatus ?? true,
+    groupDestination:
+      item?.type === "group"
+        ? pageId
+          ? "page"
+          : url
+            ? "url"
+            : "none"
+        : "none",
   };
 }
 
@@ -67,7 +81,10 @@ export default function MenuItemForm({
   }, [item]);
 
   useEffect(() => {
-    if (form.type !== "page") {
+    if (
+      form.type !== "page" &&
+      form.type !== "group"
+    ) {
       return;
     }
 
@@ -87,12 +104,14 @@ export default function MenuItemForm({
           payload?.items ??
           [];
 
-        const normalized: PageOption[] = Array.isArray(rawPages)
+        const normalized: PageOption[] = Array.isArray(
+          rawPages,
+        )
           ? rawPages.map((page: any) => ({
-              id: page.id ?? page._id,
+              id: String(page.id ?? page._id ?? ""),
               title: page.title ?? "",
               slug: page.slug ?? "",
-            }))
+            })).filter((page) => page.id !== "")
           : [];
 
         if (!cancelled) {
@@ -128,6 +147,41 @@ export default function MenuItemForm({
     }));
   }
 
+  function handleTypeChange(type: MenuItemType) {
+    setForm((current) => ({
+      ...current,
+      type,
+      ...(type === "page"
+        ? {
+            url: "",
+            groupDestination: "page" as GroupDestination,
+          }
+        : type === "url"
+          ? {
+              pageId: "",
+              groupDestination: "url" as GroupDestination,
+            }
+          : {
+              groupDestination: current.pageId
+                ? "page"
+                : current.url
+                  ? "url"
+                  : "none",
+            }),
+    }));
+  }
+
+  function handleGroupDestinationChange(
+    destination: GroupDestination,
+  ) {
+    setForm((current) => ({
+      ...current,
+      groupDestination: destination,
+      pageId: destination === "page" ? current.pageId : "",
+      url: destination === "url" ? current.url : "",
+    }));
+  }
+
   async function handleSubmit(
     event: React.FormEvent<HTMLFormElement>,
   ) {
@@ -139,13 +193,37 @@ export default function MenuItemForm({
       return;
     }
 
-    if (form.type === "page" && !form.pageId) {
+    if (
+      form.type === "page" &&
+      !form.pageId.trim()
+    ) {
       setError("Please select a page.");
       return;
     }
 
-    if (form.type === "url" && !form.url.trim()) {
+    if (
+      form.type === "url" &&
+      !form.url.trim()
+    ) {
       setError("URL is required.");
+      return;
+    }
+
+    if (
+      form.type === "group" &&
+      form.groupDestination === "page" &&
+      !form.pageId.trim()
+    ) {
+      setError("Please select a page for this group.");
+      return;
+    }
+
+    if (
+      form.type === "group" &&
+      form.groupDestination === "url" &&
+      !form.url.trim()
+    ) {
+      setError("Please enter a URL for this group.");
       return;
     }
 
@@ -155,6 +233,7 @@ export default function MenuItemForm({
       const payload: Record<string, unknown> = {
         label: form.label.trim(),
         type: form.type,
+        displayStatus: form.displayStatus,
       };
 
       if (form.type === "page") {
@@ -165,8 +244,17 @@ export default function MenuItemForm({
         payload.url = form.url.trim();
       }
 
-      if (form.displayStatus !== true) {
-        payload.displayStatus = form.displayStatus;
+      if (form.type === "group") {
+        if (form.groupDestination === "page") {
+          payload.pageId = form.pageId;
+          payload.url = "";
+        } else if (form.groupDestination === "url") {
+          payload.pageId = "";
+          payload.url = form.url.trim();
+        } else {
+          payload.pageId = "";
+          payload.url = "";
+        }
       }
 
       if (!editing && form.parentId) {
@@ -186,17 +274,90 @@ export default function MenuItemForm({
       }
 
       onSaved();
-    } catch (err: any) {
-      console.error("Unable to save menu item:", err);
+   } catch (err: unknown) {
+  console.error("Unable to save menu item:", err);
 
-      setError(
-        err?.response?.data?.message ??
-          "Unable to save the menu item.",
-      );
-    } finally {
-      setSaving(false);
+  const getBackendMessage = (data: unknown): string | null => {
+    if (typeof data === "string" && data.trim()) {
+      return data;
     }
+
+    if (!data || typeof data !== "object") {
+      return null;
+    }
+
+    const body = data as Record<string, unknown>;
+
+    for (const key of ["message", "error", "detail"]) {
+      const value = body[key];
+
+      if (typeof value === "string" && value.trim()) {
+        return value;
+      }
+
+      if (
+        value &&
+        typeof value === "object" &&
+        "message" in value &&
+        typeof (value as { message?: unknown }).message === "string"
+      ) {
+        return (value as { message: string }).message;
+      }
+    }
+
+    if (Array.isArray(body.errors)) {
+      const messages = body.errors
+        .map((entry) => {
+          if (typeof entry === "string") return entry;
+
+          if (
+            entry &&
+            typeof entry === "object" &&
+            "message" in entry &&
+            typeof (entry as { message?: unknown }).message === "string"
+          ) {
+            return (entry as { message: string }).message;
+          }
+
+          return null;
+        })
+        .filter((message): message is string => Boolean(message));
+
+      if (messages.length) {
+        return messages.join(" ");
+      }
+    }
+
+    return null;
+  };
+
+  const error = err as {
+    response?: { data?: unknown; status?: number };
+    message?: string;
+  };
+
+  const backendMessage = getBackendMessage(error.response?.data);
+
+  setError(
+    backendMessage ??
+      (error.response?.status
+        ? `Request failed (${error.response.status}).`
+        : error.message || "Unable to save the menu item."),
+  );
+} finally {
+  setSaving(false);
+}
   }
+
+  const showPageSelector =
+    form.type === "page" ||
+    (form.type === "group" &&
+      form.groupDestination === "page");
+
+  const showUrlInput =
+    form.type === "url" ||
+    (form.type === "group" &&
+      form.groupDestination === "url");
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
@@ -246,12 +407,11 @@ export default function MenuItemForm({
 
             <select
               value={form.type}
-              onChange={(event) => {
-                update(
-                  "type",
+              onChange={(event) =>
+                handleTypeChange(
                   event.target.value as MenuItemType,
-                );
-              }}
+                )
+              }
               className="w-full rounded-xl border border-zinc-300 px-3 py-2.5 text-sm outline-none focus:border-zinc-500 focus:ring-2 focus:ring-zinc-200"
             >
               <option value="group">Group</option>
@@ -259,6 +419,32 @@ export default function MenuItemForm({
               <option value="url">URL</option>
             </select>
           </div>
+
+          {form.type === "group" && (
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-zinc-800">
+                Group destination
+              </label>
+
+              <select
+                value={form.groupDestination}
+                onChange={(event) =>
+                  handleGroupDestinationChange(
+                    event.target.value as GroupDestination,
+                  )
+                }
+                className="w-full rounded-xl border border-zinc-300 px-3 py-2.5 text-sm outline-none focus:border-zinc-500 focus:ring-2 focus:ring-zinc-200"
+              >
+                <option value="none">No destination</option>
+                <option value="page">Link to a page</option>
+                <option value="url">Link to a URL</option>
+              </select>
+
+              <p className="mt-1.5 text-xs text-zinc-500">
+                Groups can have child items and an optional destination.
+              </p>
+            </div>
+          )}
 
           {!editing && (
             <div>
@@ -288,7 +474,7 @@ export default function MenuItemForm({
             </div>
           )}
 
-          {form.type === "page" && (
+          {showPageSelector && (
             <div>
               <label className="mb-1.5 block text-sm font-medium text-zinc-800">
                 Page
@@ -319,7 +505,7 @@ export default function MenuItemForm({
             </div>
           )}
 
-          {form.type === "url" && (
+          {showUrlInput && (
             <div>
               <label className="mb-1.5 block text-sm font-medium text-zinc-800">
                 URL
@@ -376,7 +562,10 @@ export default function MenuItemForm({
 
             <button
               type="submit"
-              disabled={saving || loadingPages && form.type === "page"}
+              disabled={
+                saving ||
+                (loadingPages && showPageSelector)
+              }
               className="rounded-xl bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {saving
