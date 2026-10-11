@@ -17,6 +17,8 @@ import api from "@/lib/api";
 import MenuItemTree from "./menu-item-tree";
 import type { MenuItem } from "./sortable-menu-item";
 import MenuItemForm from "./menu-item-form";
+import { DragDropProvider } from "@dnd-kit/react";
+import { isSortable } from "@dnd-kit/react/sortable";
 
 type AdminMenu = {
   id: string;
@@ -93,7 +95,11 @@ export default function MenuEditor({
   const [error, setError] = useState<string | null>(
     null,
   );
-
+ const [activeDragId, setActiveDragId] =
+    useState<string | null>(null);
+    
+    const [dirty, setDirty] =
+    useState(false);
   const [saveMessage, setSaveMessage] = useState<
     string | null
   >(null);
@@ -170,6 +176,98 @@ export default function MenuEditor({
     [draftItems],
   );
 
+   function handleDragStart(event: any) {
+    const source =
+      event.operation?.source;
+
+    if (source?.id != null) {
+      setActiveDragId(
+        String(source.id),
+      );
+    }
+
+    setSaveMessage(null);
+  }
+
+  function handleDragEnd(event: any) {
+    setActiveDragId(null);
+
+    if (event.canceled) {
+      return;
+    }
+
+    const source =
+      event.operation?.source;
+
+    const target =
+      event.operation?.target;
+
+    if (!source || !target) {
+      return;
+    }
+
+    if (
+      !isSortable(source) ||
+      !isSortable(target)
+    ) {
+      return;
+    }
+
+    const sourceGroup =
+      source.group == null
+        ? "root"
+        : String(source.group);
+
+    const targetGroup =
+      target.group == null
+        ? "root"
+        : String(target.group);
+
+    /*
+     * IMPORTANT:
+     * A menu item is only allowed to move
+     * inside its existing sibling group.
+     *
+     * This prevents:
+     *
+     * Level 2 -> Level 1
+     *
+     * and therefore prevents accidental
+     * re-parenting.
+     */
+    if (
+      sourceGroup !== targetGroup
+    ) {
+      return;
+    }
+
+    const fromIndex =
+      source.initialIndex;
+
+    const toIndex =
+      source.index;
+
+    if (
+      fromIndex == null ||
+      toIndex == null ||
+      fromIndex === toIndex
+    ) {
+      return;
+    }
+
+    setDraftItems((current) => {
+      return reorderGroup(
+        current,
+        sourceGroup,
+        fromIndex,
+        toIndex,
+      );
+    });
+
+    setDirty(true);
+    setSaveMessage(null);
+  }
+
   async function toggleMenuStatus() {
     if (!menu || saving) {
       return;
@@ -237,6 +335,108 @@ export default function MenuEditor({
       setDeleting(false);
     }
   }
+
+  async function handleItemDelete(item: MenuItem) {
+  const confirmed = window.confirm(
+    `Delete "${item.label}"?\n\nThis action cannot be undone.`,
+  );
+
+  if (!confirmed) {
+    return;
+  }
+
+  setError(null);
+  setSaveMessage(null);
+
+  try {
+    await api.delete(
+      `/admin/menus/${menuId}/items/${item.id}`,
+    );
+
+    await loadMenu();
+
+    setSaveMessage(
+      `"${item.label}" deleted successfully.`,
+    );
+  } catch (err: any) {
+    console.error("Unable to delete menu item:", err);
+
+    setError(
+      err?.response?.data?.message ??
+        "Unable to delete the menu item.",
+    );
+  }
+}
+
+function reorder<T>(
+  items: T[],
+  fromIndex: number,
+  toIndex: number,
+): T[] {
+  if (
+    fromIndex < 0 ||
+    toIndex < 0 ||
+    fromIndex >= items.length ||
+    toIndex >= items.length ||
+    fromIndex === toIndex
+  ) {
+    return items;
+  }
+
+  const next = [...items];
+
+  const [moved] = next.splice(fromIndex, 1);
+
+  if (moved === undefined) {
+    return items;
+  }
+
+  next.splice(toIndex, 0, moved);
+
+  return next;
+}
+
+function reorderGroup(
+  items: MenuItem[],
+  group: string | number | undefined,
+  fromIndex: number,
+  toIndex: number,
+): MenuItem[] {
+  const normalizedGroup =
+    group == null
+      ? "root"
+      : String(group);
+
+  if (normalizedGroup === "root") {
+    return reorder(
+      items,
+      fromIndex,
+      toIndex,
+    );
+  }
+
+  if (!normalizedGroup.startsWith("parent:")) {
+    return items;
+  }
+
+  const parentId =
+    normalizedGroup.slice("parent:".length);
+
+  return items.map((item) => {
+    if (item.id !== parentId) {
+      return item;
+    }
+
+    return {
+      ...item,
+      children: reorder(
+        item.children ?? [],
+        fromIndex,
+        toIndex,
+      ),
+    };
+  });
+}
 
   function openCreateForm() {
     setEditingItem(null);
@@ -395,10 +595,16 @@ export default function MenuEditor({
       {/* Existing menu structure; ordering controls removed */}
       <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
         {draftItems.length > 0 ? (
-          <MenuItemTree
-            items={draftItems}
-            onEdit={openEditForm}
-          />
+          <DragDropProvider
+  onDragStart={handleDragStart}
+  onDragEnd={handleDragEnd}
+>
+  <MenuItemTree
+    items={draftItems}
+    onEdit={openEditForm}
+    onDelete={handleItemDelete}
+  />
+</DragDropProvider>
         ) : (
           <div className="rounded-xl border border-dashed border-zinc-300 px-6 py-12 text-center">
             <p className="font-medium text-zinc-800">

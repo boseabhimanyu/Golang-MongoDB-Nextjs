@@ -8,6 +8,7 @@ import {
   Folder,
   GripVertical,
   Pencil,
+  Trash2,
 } from "lucide-react";
 import { useState } from "react";
 import { useSortable } from "@dnd-kit/react/sortable";
@@ -31,6 +32,7 @@ type SortableMenuItemProps = {
   groupId: string;
   depth: number;
   onEdit: (item: MenuItem) => void;
+  onDelete: (item: MenuItem) => void;
 };
 
 function getItemIcon(type: MenuItemType) {
@@ -51,6 +53,7 @@ export default function SortableMenuItem({
   groupId,
   depth,
   onEdit,
+  onDelete,
 }: SortableMenuItemProps) {
   const [expanded, setExpanded] = useState(true);
 
@@ -79,9 +82,7 @@ export default function SortableMenuItem({
           sortable.isDropTarget
             ? "ring-2 ring-blue-200"
             : "",
-          !item.displayStatus
-            ? "opacity-60"
-            : "",
+          !item.displayStatus ? "opacity-60" : "",
         ].join(" ")}
       >
         {/* Drag handle */}
@@ -159,17 +160,25 @@ export default function SortableMenuItem({
           className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-700 hover:bg-zinc-50"
         >
           <Pencil className="h-4 w-4" />
-          <span className="hidden sm:inline">
-            Edit
-          </span>
+          <span className="hidden sm:inline">Edit</span>
+        </button>
+
+        {/* Delete */}
+        <button
+          type="button"
+          onClick={() => onDelete(item)}
+          aria-label={`Delete ${item.label}`}
+          title={`Delete ${item.label}`}
+          className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-red-200 px-3 py-2 text-sm text-red-600 hover:bg-red-50"
+        >
+          <Trash2 className="h-4 w-4" />
+          <span className="hidden sm:inline">Delete</span>
         </button>
       </div>
 
       {/* Children */}
       {hasChildren && expanded && (
-        <div
-          className="ml-8 mt-2 space-y-2 border-l-2 border-zinc-100 pl-4"
-        >
+        <div className="ml-8 mt-2 space-y-2 border-l-2 border-zinc-100 pl-4">
           {children.map((child, childIndex) => (
             <SortableMenuItem
               key={child.id}
@@ -178,6 +187,7 @@ export default function SortableMenuItem({
               groupId={`parent:${item.id}`}
               depth={depth + 1}
               onEdit={onEdit}
+              onDelete={onDelete}
             />
           ))}
         </div>

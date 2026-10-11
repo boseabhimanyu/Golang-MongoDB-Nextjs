@@ -7,11 +7,13 @@ import SortableMenuItem, {
 type MenuItemTreeProps = {
   items: MenuItem[];
   onEdit: (item: MenuItem) => void;
+  onDelete: (item: MenuItem) => void;
 };
 
 export default function MenuItemTree({
   items,
   onEdit,
+  onDelete,
 }: MenuItemTreeProps) {
   if (!items.length) {
     return (
@@ -37,6 +39,7 @@ export default function MenuItemTree({
           groupId="root"
           depth={0}
           onEdit={onEdit}
+          onDelete={onDelete}
         />
       ))}
     </div>
