@@ -92,7 +92,10 @@ export default function MenuEditor({
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [deleting, setDeleting] = useState(false);
+
+  // State for menu deletion confirmation modal
+  const [showMenuDeleteModal, setShowMenuDeleteModal] = useState(false);
+  const [menuDeleting, setMenuDeleting] = useState(false);
 
   // State for item deletion confirmation modal
   const [itemToDelete, setItemToDelete] =
@@ -124,11 +127,6 @@ export default function MenuEditor({
     try {
       const response = await api.get(
         `/admin/menus/${menuId}`,
-      );
-
-      console.log(
-        "Menu detail API response:",
-        response.data,
       );
 
       const loadedMenu = response.data?.menu;
@@ -300,36 +298,25 @@ export default function MenuEditor({
     }
   }
 
-  async function deleteMenu() {
-    if (!menu || deleting || saving) {
-      return;
-    }
+  // Confirmed handler for deleting the entire menu
+  async function handleConfirmMenuDelete() {
+    if (!menu) return;
 
-    const confirmed = window.confirm(
-      `Delete "${menu.name}"?\n\nThis will permanently delete this menu.`,
-    );
-
-    if (!confirmed) {
-      return;
-    }
-
-    setDeleting(true);
+    setMenuDeleting(true);
     setError(null);
 
     try {
       await api.delete(`/admin/menus/${menu.id}`);
-
       window.location.href = "/dashboard/menus";
     } catch (err) {
       console.error("Unable to delete menu:", err);
-
       setError("Unable to delete this menu.");
-    } finally {
-      setDeleting(false);
+      setMenuDeleting(false);
+      setShowMenuDeleteModal(false);
     }
   }
 
-  // Triggers opening the delete confirmation modal
+  // Triggers opening the delete confirmation modal for a menu item
   function handleItemDeleteClick(item: MenuItem) {
     setItemToDelete(item);
     setError(null);
@@ -520,7 +507,7 @@ export default function MenuEditor({
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
-            disabled={saving || deleting}
+            disabled={saving || menuDeleting}
             onClick={() => void toggleMenuStatus()}
             className={[
               "inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50",
@@ -538,13 +525,13 @@ export default function MenuEditor({
 
           <button
             type="button"
-            disabled={deleting || saving}
-            onClick={() => void deleteMenu()}
+            disabled={menuDeleting || saving}
+            onClick={() => setShowMenuDeleteModal(true)}
             className="inline-flex items-center gap-2 rounded-xl border border-red-200 px-4 py-2.5 text-sm font-medium text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Trash2 className="h-4 w-4" />
 
-            {deleting ? "Deleting..." : "Delete Menu"}
+            Delete Menu
           </button>
         </div>
       </div>
@@ -638,7 +625,69 @@ export default function MenuEditor({
         />
       )}
 
-      {/* Delete Item Confirmation Modal */}
+      {/* Delete Menu Confirmation Modal */}
+      {showMenuDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-2xl border border-zinc-200 bg-white shadow-xl">
+            <div className="flex items-center justify-between border-b border-zinc-200 px-5 py-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-50 text-red-600">
+                  <AlertTriangle className="h-5 w-5" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-semibold text-zinc-900">
+                    Delete Menu
+                  </h2>
+                  <p className="text-xs text-zinc-500">
+                    This action cannot be undone.
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowMenuDeleteModal(false)}
+                className="rounded-lg p-2 text-zinc-500 hover:bg-zinc-100"
+                aria-label="Close modal"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="p-5">
+              <p className="text-sm text-zinc-600">
+                Are you sure you want to delete{" "}
+                <span className="font-semibold text-zinc-900">
+                  &ldquo;{menu.name}&rdquo;
+                </span>
+                ? This will permanently delete this menu and all of its items.
+              </p>
+            </div>
+
+            <div className="flex justify-end gap-3 border-t border-zinc-200 bg-zinc-50 px-5 py-4 rounded-b-2xl">
+              <button
+                type="button"
+                onClick={() => setShowMenuDeleteModal(false)}
+                disabled={menuDeleting}
+                className="rounded-xl border border-zinc-300 bg-white px-4 py-2.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                onClick={handleConfirmMenuDelete}
+                disabled={menuDeleting}
+                className="rounded-xl bg-red-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {menuDeleting ? "Deleting..." : "Delete Menu"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Menu Item Confirmation Modal */}
       {itemToDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-md rounded-2xl border border-zinc-200 bg-white shadow-xl">

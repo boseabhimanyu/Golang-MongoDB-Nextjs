@@ -20,6 +20,7 @@ export type AdminMenu = {
 type MenuListProps = {
   menus: AdminMenu[];
   onChanged?: () => void;
+  onDelete?: (menu: AdminMenu) => void; // Added onDelete prop
 };
 
 const menuInfo = {
@@ -51,6 +52,7 @@ const locations: Array<
 export default function MenuList({
   menus,
   onChanged,
+  onDelete,
 }: MenuListProps) {
   const [busyId, setBusyId] =
     useState<string | null>(null);
@@ -80,7 +82,6 @@ export default function MenuList({
     }
   }
 
-
   async function initializeMenu(
     location: AdminMenu["location"],
   ) {
@@ -101,37 +102,6 @@ export default function MenuList({
 
       window.alert(
         `Unable to initialize the ${menuInfo[location].title}.`,
-      );
-    } finally {
-      setBusyId(null);
-    }
-  }
-
-  async function deleteMenu(
-    menu: AdminMenu,
-  ) {
-    const confirmed =
-      window.confirm(
-        `Delete "${menu.name}"?\n\nThis will permanently delete the menu.`,
-      );
-
-    if (!confirmed) {
-      return;
-    }
-
-    setBusyId(menu.id);
-
-    try {
-      await api.delete(
-        `/admin/menus/${menu.id}`,
-      );
-
-      onChanged?.();
-    } catch (error) {
-      console.error(error);
-
-      window.alert(
-        "Unable to delete the menu.",
       );
     } finally {
       setBusyId(null);
@@ -232,7 +202,7 @@ export default function MenuList({
                       busyId === menu.id
                     }
                     onClick={() =>
-                      deleteMenu(menu)
+                      onDelete?.(menu) // Triggers the parent modal handler
                     }
                     className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-200 px-4 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50"
                   >
@@ -241,17 +211,17 @@ export default function MenuList({
                   </button>
                 </div>
               ) : (
-    <button
-      type="button"
-      disabled={busyId === location}
-      onClick={() => initializeMenu(location)}
-      className="inline-flex items-center justify-center rounded-xl bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50"
-    >
-      {busyId === location
-        ? "Initializing..."
-        : "Initialize Menu"}
-    </button>
-  )}
+                <button
+                  type="button"
+                  disabled={busyId === location}
+                  onClick={() => initializeMenu(location)}
+                  className="inline-flex items-center justify-center rounded-xl bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {busyId === location
+                    ? "Initializing..."
+                    : "Initialize Menu"}
+                </button>
+              )}
             </div>
           </div>
         );
