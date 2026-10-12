@@ -34,6 +34,16 @@ type MenuEditorProps = {
   menuId: string;
 };
 
+// Recursively sort items and children by their 'order' property ascending
+function sortItemsByOrder(items: MenuItem[]): MenuItem[] {
+  return [...items]
+    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+    .map((item) => ({
+      ...item,
+      children: sortItemsByOrder(item.children ?? []),
+    }));
+}
+
 function collectGroups(items: MenuItem[]): MenuItem[] {
   const groups: MenuItem[] = [];
 
@@ -108,8 +118,6 @@ export default function MenuEditor({
   const [activeDragId, setActiveDragId] =
     useState<string | null>(null);
     
-  const [dirty, setDirty] =
-    useState(false);
   const [saveMessage, setSaveMessage] = useState<
     string | null
   >(null);
@@ -144,7 +152,7 @@ export default function MenuEditor({
       const items: MenuItem[] = Array.isArray(
         loadedMenu.items,
       )
-        ? loadedMenu.items
+        ? sortItemsByOrder(loadedMenu.items)
         : [];
 
       setMenu({
@@ -192,7 +200,7 @@ export default function MenuEditor({
     setSaveMessage(null);
   }
 
-  function handleDragEnd(event: any) {
+  async function handleDragEnd(event: any) {
     setActiveDragId(null);
 
     if (event.canceled) {
@@ -246,17 +254,45 @@ export default function MenuEditor({
       return;
     }
 
+    const itemId = String(source.id);
+    const newOrder = toIndex + 1;
+
+    // Optimistically update local UI state immediately
     setDraftItems((current) => {
-      return reorderGroup(
-        current,
-        sourceGroup,
-        fromIndex,
-        toIndex,
+      return sortItemsByOrder(
+        reorderGroup(
+          current,
+          sourceGroup,
+          fromIndex,
+          toIndex,
+        ),
       );
     });
 
-    setDirty(true);
+    setError(null);
     setSaveMessage(null);
+
+    try {
+      // Send the PATCH request to update the item order in the database
+      await api.patch(
+        `/admin/menus/${menuId}/items/${itemId}/order`,
+        {
+          order: newOrder,
+        },
+      );
+
+      // Refresh menu to sync with server state
+      await loadMenu();
+      setSaveMessage("Menu item order updated successfully.");
+    } catch (err: any) {
+      console.error("Unable to update menu item order:", err);
+      setError(
+        err?.response?.data?.message ??
+          "Unable to update menu item order.",
+      );
+      // Revert draft items on failure by reloading original menu
+      await loadMenu();
+    }
   }
 
   async function toggleMenuStatus() {
