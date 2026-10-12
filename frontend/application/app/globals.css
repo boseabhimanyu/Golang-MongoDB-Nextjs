@@ -90,6 +90,8 @@ img {
   -webkit-backdrop-filter: blur(var(--glass-blur));
 }
 
+/* Tinymce Editor */
+
 .page-editor-content p,
 .page-content p {
   margin-top: 0;

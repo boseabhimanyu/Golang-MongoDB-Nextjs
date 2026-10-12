@@ -2,8 +2,10 @@
 
 import {
   AlertCircle,
+  AlertTriangle,
   Plus,
   Trash2,
+  X,
 } from "lucide-react";
 import {
   useCallback,
@@ -92,13 +94,18 @@ export default function MenuEditor({
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
+  // State for item deletion confirmation modal
+  const [itemToDelete, setItemToDelete] =
+    useState<MenuItem | null>(null);
+  const [itemDeleting, setItemDeleting] = useState(false);
+
   const [error, setError] = useState<string | null>(
     null,
   );
- const [activeDragId, setActiveDragId] =
+  const [activeDragId, setActiveDragId] =
     useState<string | null>(null);
     
-    const [dirty, setDirty] =
+  const [dirty, setDirty] =
     useState(false);
   const [saveMessage, setSaveMessage] = useState<
     string | null
@@ -124,7 +131,6 @@ export default function MenuEditor({
         response.data,
       );
 
-      // Backend response: { menu: { ..., items: [...] } }
       const loadedMenu = response.data?.menu;
 
       if (
@@ -137,7 +143,6 @@ export default function MenuEditor({
         );
       }
 
-      // Support both an empty menu and a populated menu.
       const items: MenuItem[] = Array.isArray(
         loadedMenu.items,
       )
@@ -176,7 +181,7 @@ export default function MenuEditor({
     [draftItems],
   );
 
-   function handleDragStart(event: any) {
+  function handleDragStart(event: any) {
     const source =
       event.operation?.source;
 
@@ -223,18 +228,6 @@ export default function MenuEditor({
         ? "root"
         : String(target.group);
 
-    /*
-     * IMPORTANT:
-     * A menu item is only allowed to move
-     * inside its existing sibling group.
-     *
-     * This prevents:
-     *
-     * Level 2 -> Level 1
-     *
-     * and therefore prevents accidental
-     * re-parenting.
-     */
     if (
       sourceGroup !== targetGroup
     ) {
@@ -336,107 +329,113 @@ export default function MenuEditor({
     }
   }
 
-  async function handleItemDelete(item: MenuItem) {
-  const confirmed = window.confirm(
-    `Delete "${item.label}"?\n\nThis action cannot be undone.`,
-  );
-
-  if (!confirmed) {
-    return;
+  // Triggers opening the delete confirmation modal
+  function handleItemDeleteClick(item: MenuItem) {
+    setItemToDelete(item);
+    setError(null);
+    setSaveMessage(null);
   }
 
-  setError(null);
-  setSaveMessage(null);
+  // Executes actual deletion when confirmed inside the modal
+  async function handleConfirmItemDelete() {
+    if (!itemToDelete) return;
 
-  try {
-    await api.delete(
-      `/admin/menus/${menuId}/items/${item.id}`,
-    );
+    setItemDeleting(true);
+    setError(null);
+    setSaveMessage(null);
 
-    await loadMenu();
+    try {
+      await api.delete(
+        `/admin/menus/${menuId}/items/${itemToDelete.id}`,
+      );
 
-    setSaveMessage(
-      `"${item.label}" deleted successfully.`,
-    );
-  } catch (err: any) {
-    console.error("Unable to delete menu item:", err);
+      await loadMenu();
 
-    setError(
-      err?.response?.data?.message ??
-        "Unable to delete the menu item.",
-    );
-  }
-}
+      setSaveMessage(
+        `"${itemToDelete.label}" deleted successfully.`,
+      );
+      setItemToDelete(null);
+    } catch (err: any) {
+      console.error("Unable to delete menu item:", err);
 
-function reorder<T>(
-  items: T[],
-  fromIndex: number,
-  toIndex: number,
-): T[] {
-  if (
-    fromIndex < 0 ||
-    toIndex < 0 ||
-    fromIndex >= items.length ||
-    toIndex >= items.length ||
-    fromIndex === toIndex
-  ) {
-    return items;
+      setError(
+        err?.response?.data?.message ??
+          "Unable to delete the menu item.",
+      );
+    } finally {
+      setItemDeleting(false);
+    }
   }
 
-  const next = [...items];
-
-  const [moved] = next.splice(fromIndex, 1);
-
-  if (moved === undefined) {
-    return items;
-  }
-
-  next.splice(toIndex, 0, moved);
-
-  return next;
-}
-
-function reorderGroup(
-  items: MenuItem[],
-  group: string | number | undefined,
-  fromIndex: number,
-  toIndex: number,
-): MenuItem[] {
-  const normalizedGroup =
-    group == null
-      ? "root"
-      : String(group);
-
-  if (normalizedGroup === "root") {
-    return reorder(
-      items,
-      fromIndex,
-      toIndex,
-    );
-  }
-
-  if (!normalizedGroup.startsWith("parent:")) {
-    return items;
-  }
-
-  const parentId =
-    normalizedGroup.slice("parent:".length);
-
-  return items.map((item) => {
-    if (item.id !== parentId) {
-      return item;
+  function reorder<T>(
+    items: T[],
+    fromIndex: number,
+    toIndex: number,
+  ): T[] {
+    if (
+      fromIndex < 0 ||
+      toIndex < 0 ||
+      fromIndex >= items.length ||
+      toIndex >= items.length ||
+      fromIndex === toIndex
+    ) {
+      return items;
     }
 
-    return {
-      ...item,
-      children: reorder(
-        item.children ?? [],
+    const next = [...items];
+
+    const [moved] = next.splice(fromIndex, 1);
+
+    if (moved === undefined) {
+      return items;
+    }
+
+    next.splice(toIndex, 0, moved);
+
+    return next;
+  }
+
+  function reorderGroup(
+    items: MenuItem[],
+    group: string | number | undefined,
+    fromIndex: number,
+    toIndex: number,
+  ): MenuItem[] {
+    const normalizedGroup =
+      group == null
+        ? "root"
+        : String(group);
+
+    if (normalizedGroup === "root") {
+      return reorder(
+        items,
         fromIndex,
         toIndex,
-      ),
-    };
-  });
-}
+      );
+    }
+
+    if (!normalizedGroup.startsWith("parent:")) {
+      return items;
+    }
+
+    const parentId =
+      normalizedGroup.slice("parent:".length);
+
+    return items.map((item) => {
+      if (item.id !== parentId) {
+        return item;
+      }
+
+      return {
+        ...item,
+        children: reorder(
+          item.children ?? [],
+          fromIndex,
+          toIndex,
+        ),
+      };
+    });
+  }
 
   function openCreateForm() {
     setEditingItem(null);
@@ -592,19 +591,19 @@ function reorderGroup(
         </button>
       </div>
 
-      {/* Existing menu structure; ordering controls removed */}
+      {/* Existing menu structure */}
       <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
         {draftItems.length > 0 ? (
           <DragDropProvider
-  onDragStart={handleDragStart}
-  onDragEnd={handleDragEnd}
->
-  <MenuItemTree
-    items={draftItems}
-    onEdit={openEditForm}
-    onDelete={handleItemDelete}
-  />
-</DragDropProvider>
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+          >
+            <MenuItemTree
+              items={draftItems}
+              onEdit={openEditForm}
+              onDelete={handleItemDeleteClick}
+            />
+          </DragDropProvider>
         ) : (
           <div className="rounded-xl border border-dashed border-zinc-300 px-6 py-12 text-center">
             <p className="font-medium text-zinc-800">
@@ -628,7 +627,7 @@ function reorderGroup(
         )}
       </div>
 
-      {/* Existing create/edit form */}
+      {/* Item create/edit form */}
       {showItemForm && (
         <MenuItemForm
           menuId={menu.id}
@@ -637,6 +636,68 @@ function reorderGroup(
           onClose={closeItemForm}
           onSaved={handleItemSaved}
         />
+      )}
+
+      {/* Delete Item Confirmation Modal */}
+      {itemToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-2xl border border-zinc-200 bg-white shadow-xl">
+            <div className="flex items-center justify-between border-b border-zinc-200 px-5 py-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-50 text-red-600">
+                  <AlertTriangle className="h-5 w-5" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-semibold text-zinc-900">
+                    Delete Menu Item
+                  </h2>
+                  <p className="text-xs text-zinc-500">
+                    This action cannot be undone.
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setItemToDelete(null)}
+                className="rounded-lg p-2 text-zinc-500 hover:bg-zinc-100"
+                aria-label="Close modal"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="p-5">
+              <p className="text-sm text-zinc-600">
+                Are you sure you want to delete{" "}
+                <span className="font-semibold text-zinc-900">
+                  &ldquo;{itemToDelete.label}&rdquo;
+                </span>
+                ? If this is a group, any child items inside it may also be affected.
+              </p>
+            </div>
+
+            <div className="flex justify-end gap-3 border-t border-zinc-200 bg-zinc-50 px-5 py-4 rounded-b-2xl">
+              <button
+                type="button"
+                onClick={() => setItemToDelete(null)}
+                disabled={itemDeleting}
+                className="rounded-xl border border-zinc-300 bg-white px-4 py-2.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                onClick={handleConfirmItemDelete}
+                disabled={itemDeleting}
+                className="rounded-xl bg-red-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {itemDeleting ? "Deleting..." : "Delete Item"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

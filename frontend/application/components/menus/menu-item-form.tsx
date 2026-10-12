@@ -35,6 +35,24 @@ type FormState = {
   groupDestination: GroupDestination;
 };
 
+// Helper function to validate absolute URLs and relative paths
+function isValidMenuUrl(value: string): boolean {
+  const trimmed = value.trim();
+  
+  // 1. Allow relative paths starting with '/' (e.g., /dashboard, /about)
+  if (trimmed.startsWith("/")) {
+    return trimmed.length > 1; 
+  }
+
+  // 2. Allow valid http:// or https:// absolute URLs
+  try {
+    const parsed = new URL(trimmed);
+    return parsed.protocol === "http:" || parsed.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
 function initialState(item?: MenuItem | null): FormState {
   const pageId = item?.pageId ?? "";
   const url = item?.url ?? "";
@@ -227,6 +245,20 @@ export default function MenuItemForm({
       return;
     }
 
+    // Validate absolute URL or relative path format
+    const isUrlActive =
+      form.type === "url" ||
+      (form.type === "group" && form.groupDestination === "url");
+
+    if (isUrlActive && form.url.trim()) {
+      if (!isValidMenuUrl(form.url)) {
+        setError(
+          "Please enter a valid absolute URL (e.g., https://example.com) or relative path (e.g., /dashboard)."
+        );
+        return;
+      }
+    }
+
     try {
       setSaving(true);
 
@@ -274,79 +306,79 @@ export default function MenuItemForm({
       }
 
       onSaved();
-   } catch (err: unknown) {
-  console.error("Unable to save menu item:", err);
+    } catch (err: unknown) {
+      console.error("Unable to save menu item:", err);
 
-  const getBackendMessage = (data: unknown): string | null => {
-    if (typeof data === "string" && data.trim()) {
-      return data;
-    }
+      const getBackendMessage = (data: unknown): string | null => {
+        if (typeof data === "string" && data.trim()) {
+          return data;
+        }
 
-    if (!data || typeof data !== "object") {
-      return null;
-    }
+        if (!data || typeof data !== "object") {
+          return null;
+        }
 
-    const body = data as Record<string, unknown>;
+        const body = data as Record<string, unknown>;
 
-    for (const key of ["message", "error", "detail"]) {
-      const value = body[key];
+        for (const key of ["message", "error", "detail"]) {
+          const value = body[key];
 
-      if (typeof value === "string" && value.trim()) {
-        return value;
-      }
-
-      if (
-        value &&
-        typeof value === "object" &&
-        "message" in value &&
-        typeof (value as { message?: unknown }).message === "string"
-      ) {
-        return (value as { message: string }).message;
-      }
-    }
-
-    if (Array.isArray(body.errors)) {
-      const messages = body.errors
-        .map((entry) => {
-          if (typeof entry === "string") return entry;
-
-          if (
-            entry &&
-            typeof entry === "object" &&
-            "message" in entry &&
-            typeof (entry as { message?: unknown }).message === "string"
-          ) {
-            return (entry as { message: string }).message;
+          if (typeof value === "string" && value.trim()) {
+            return value;
           }
 
-          return null;
-        })
-        .filter((message): message is string => Boolean(message));
+          if (
+            value &&
+            typeof value === "object" &&
+            "message" in value &&
+            typeof (value as { message?: unknown }).message === "string"
+          ) {
+            return (value as { message: string }).message;
+          }
+        }
 
-      if (messages.length) {
-        return messages.join(" ");
-      }
+        if (Array.isArray(body.errors)) {
+          const messages = body.errors
+            .map((entry) => {
+              if (typeof entry === "string") return entry;
+
+              if (
+                entry &&
+                typeof entry === "object" &&
+                "message" in entry &&
+                typeof (entry as { message?: unknown }).message === "string"
+              ) {
+                return (entry as { message: string }).message;
+              }
+
+              return null;
+            })
+            .filter((message): message is string => Boolean(message));
+
+          if (messages.length) {
+            return messages.join(" ");
+          }
+        }
+
+        return null;
+      };
+
+      const error = err as {
+        response?: { data?: unknown; status?: number };
+        message?: string;
+      };
+
+      const backendMessage = getBackendMessage(error.response?.data);
+
+      setError(
+        backendMessage ??
+          (error.response?.status
+            ? `Request failed (${error.response.status}).`
+            : error.message || "Unable to save the menu item."),
+      );
+    } finally {
+      setSaving(false);
     }
-
-    return null;
-  };
-
-  const error = err as {
-    response?: { data?: unknown; status?: number };
-    message?: string;
-  };
-
-  const backendMessage = getBackendMessage(error.response?.data);
-
-  setError(
-    backendMessage ??
-      (error.response?.status
-        ? `Request failed (${error.response.status}).`
-        : error.message || "Unable to save the menu item."),
-  );
-} finally {
-  setSaving(false);
-}
   }
 
   const showPageSelector =
@@ -508,18 +540,18 @@ export default function MenuItemForm({
           {showUrlInput && (
             <div>
               <label className="mb-1.5 block text-sm font-medium text-zinc-800">
-                URL
+                URL or Path
               </label>
 
               <input
-                type="url"
+                type="text" // Changed from "url" to "text" to support relative paths
                 value={form.url}
                 onChange={(event) =>
                   update("url", event.target.value)
                 }
                 required
                 className="w-full rounded-xl border border-zinc-300 px-3 py-2.5 text-sm outline-none focus:border-zinc-500 focus:ring-2 focus:ring-zinc-200"
-                placeholder="https://example.com"
+                placeholder="https://example.com or /dashboard"
               />
             </div>
           )}
