@@ -45,7 +45,7 @@ if (response.data.backupCodesLow) {
   );
 }
 
-router.push("/dashboard");
+router.push("/");
     } catch (error) {
       if (axios.isAxiosError(error)) {
         setError(

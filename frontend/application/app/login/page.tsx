@@ -13,15 +13,15 @@ export default async function LoginPage() {
   const user = await getCurrentUser();
 
   if (user) {
-    redirect("/dashboard");
+    redirect("/");
   }
 
   const response = await api.get<SettingsResponse>("/settings");
 
   return (
     <main className="min-h-screen">
-      <LoginForm
-        loginHint={response.data.login_hint}
+      <LoginForm 
+      loginHint={response.data.login_hint} 
       />
     </main>
   );

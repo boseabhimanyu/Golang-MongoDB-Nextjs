@@ -1,5 +1,6 @@
 import DynamicMenus from "@/components/menus/DynamicMenus";
 import { fetchMenu } from "@/components/menus/menu-api";
+import AuthFloatingWidget from "@/components/AuthFloatingWidget";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +20,7 @@ export default async function WebsiteLayout({
       initialMenus={{ top, left, bottom }}
     >
       {children}
+      <AuthFloatingWidget />
     </DynamicMenus>
   );
 }

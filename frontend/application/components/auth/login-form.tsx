@@ -60,7 +60,7 @@ export default function LoginForm({
   );
 }
 
-      window.location.href = "/dashboard";
+      window.location.href = "/";
     } catch (error) {
       if (axios.isAxiosError(error)) {
         setError(
