@@ -55,7 +55,7 @@ export default function AuthFloatingWidget() {
   const checkSession = useCallback(async () => {
     try {
       const response = await api.get<AuthResponse>("/auth/me");
-      console.log("Auth response:", response.data);
+
       setUser(response.data.user ?? null);
     } catch {
       setUser(null);
@@ -132,71 +132,87 @@ export default function AuthFloatingWidget() {
     .filter(Boolean)
     .join(" ");
 
-  function handlePointerDown(
-    event: PointerEvent<HTMLDivElement>,
+  // Start dragging from the widget header.
+function handlePointerDown(
+  event: PointerEvent<HTMLDivElement>,
+) {
+  if (event.button !== 0) return;
+
+  // Do not drag when interacting with controls.
+  if (
+    (event.target as HTMLElement).closest(
+      "button, a, input, select, textarea",
+    )
   ) {
-    // Only the header area is draggable.
-    if (
-      (event.target as HTMLElement).closest(
-        "button, a, input, select, textarea",
-      )
-    ) {
-      return;
-    }
-
-    const element = widgetRef.current;
-    if (!element) return;
-
-    const rect = element.getBoundingClientRect();
-
-    dragRef.current = {
-      active: true,
-      offsetX: event.clientX - rect.left,
-      offsetY: event.clientY - rect.top,
-    };
-
-    event.currentTarget.setPointerCapture(event.pointerId);
-    setDragging(true);
-    event.preventDefault();
+    return;
   }
 
-  function handlePointerMove(
-    event: PointerEvent<HTMLDivElement>,
-  ) {
-    if (!dragRef.current.active) return;
+  const element = widgetRef.current;
+  if (!element) return;
 
-    const element = widgetRef.current;
-    if (!element) return;
+  const rect = element.getBoundingClientRect();
 
-    const maxLeft = Math.max(
+  dragRef.current = {
+    active: true,
+    offsetX: event.clientX - rect.left,
+    offsetY: event.clientY - rect.top,
+  };
+
+  event.currentTarget.setPointerCapture(event.pointerId);
+  setDragging(true);
+  event.preventDefault();
+}
+
+// Move the widget while the pointer is captured.
+function handlePointerMove(
+  event: PointerEvent<HTMLDivElement>,
+) {
+  if (!dragRef.current.active) return;
+
+  const element = widgetRef.current;
+  if (!element) return;
+
+  const maxLeft = Math.max(
+    0,
+    window.innerWidth - element.offsetWidth,
+  );
+
+  const maxTop = Math.max(
+    0,
+    window.innerHeight - element.offsetHeight,
+  );
+
+  setPosition({
+    left: Math.max(
       0,
-      window.innerWidth - element.offsetWidth,
-    );
-
-    const maxTop = Math.max(
+      Math.min(
+        event.clientX - dragRef.current.offsetX,
+        maxLeft,
+      ),
+    ),
+    top: Math.max(
       0,
-      window.innerHeight - element.offsetHeight,
-    );
+      Math.min(
+        event.clientY - dragRef.current.offsetY,
+        maxTop,
+      ),
+    ),
+  });
+}
 
-    const nextLeft = event.clientX - dragRef.current.offsetX;
-    const nextTop = event.clientY - dragRef.current.offsetY;
+// Finish dragging or handle pointer cancellation.
+function handlePointerUp(
+  event: PointerEvent<HTMLDivElement>,
+) {
+  dragRef.current.active = false;
+  setDragging(false);
 
-    setPosition({
-      left: Math.max(0, Math.min(nextLeft, maxLeft)),
-      top: Math.max(0, Math.min(nextTop, maxTop)),
-    });
+  if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+    event.currentTarget.releasePointerCapture(event.pointerId);
   }
+}
 
-  function handlePointerUp(
-    event: PointerEvent<HTMLDivElement>,
-  ) {
-    dragRef.current.active = false;
-    setDragging(false);
-
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-      event.currentTarget.releasePointerCapture(event.pointerId);
-    }
-  }
+ 
 
   async function handleSignOut() {
     if (signingOut) return;
@@ -219,7 +235,13 @@ export default function AuthFloatingWidget() {
     }
   }
 
-  if (loading || !position) return null;
+if (loading || !position) {
+  return (
+    <div className="fixed bottom-4 right-4 z-[99999] rounded-lg bg-red-600 p-3 text-white shadow-xl">
+      Widget hidden: {loading ? "Checking session..." : "Initializing position..."}
+    </div>
+  );
+}
 
   return (
     <aside
@@ -251,31 +273,31 @@ export default function AuthFloatingWidget() {
             border border-slate-200 bg-white p-4 shadow-2xl"
         >
           {/* Drag handle */}
-          <div
-            ref={dragHandleRef}
-            onPointerDown={handlePointerDown}
-            onPointerMove={handlePointerMove}
-            onPointerUp={handlePointerUp}
-            onPointerCancel={handlePointerUp}
-            className={`mb-3 flex items-center justify-between gap-3
-              rounded-lg select-none
-              ${dragging ? "cursor-grabbing" : "cursor-grab"}`}
-            style={{ touchAction: "none" }}
-          >
-            <h2 className="text-base font-semibold text-slate-900">
-              {user ? "My Account" : "Welcome!"}
-            </h2>
+         <div
+  ref={dragHandleRef}
+  onPointerDown={handlePointerDown}
+  onPointerMove={handlePointerMove}
+  onPointerUp={handlePointerUp}
+  onPointerCancel={handlePointerUp}
+  className={`mb-3 flex items-center justify-between gap-3
+    rounded-lg select-none
+    ${dragging ? "cursor-grabbing" : "cursor-grab"}`}
+  style={{ touchAction: "none" }}
+>
+  <h2 className="text-base font-semibold text-slate-900">
+    {user ? "My Account" : "Welcome!"}
+  </h2>
 
-            <button
-              type="button"
-              onClick={() => setMinimized(true)}
-              aria-label="Minimize account menu"
-              className="rounded-md p-1.5 text-slate-500
-                hover:bg-slate-100 hover:text-slate-900"
-            >
-              <MinusIcon />
-            </button>
-          </div>
+  <button
+    type="button"
+    onClick={() => setMinimized(true)}
+    aria-label="Minimize account menu"
+    className="rounded-md p-1.5 text-slate-500
+      hover:bg-slate-100 hover:text-slate-900"
+  >
+    <MinusIcon />
+  </button>
+</div>
 
           <p className="mb-4 break-words text-sm text-slate-500">
             {user
@@ -307,15 +329,15 @@ export default function AuthFloatingWidget() {
                 )}
 
                 {!isAdmin && (
-                  <Link
-                    href="/security"
-                    className="rounded-lg border border-slate-200
-                      px-4 py-2.5 text-center text-sm font-medium
-                      text-slate-700 transition hover:bg-slate-50"
-                  >
-                    Security
-                  </Link>
-                )}
+  <Link
+    href="/security"
+    className="rounded-lg border border-slate-200
+      px-4 py-2.5 text-center text-sm font-medium
+      text-slate-700 transition hover:bg-slate-50"
+  >
+    Security
+  </Link>
+)}
 
                 <Link
                   href="/profile"
