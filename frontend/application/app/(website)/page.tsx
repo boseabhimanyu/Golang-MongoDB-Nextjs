@@ -1,5 +1,11 @@
 import Link from "next/link";
 import api from "@/lib/api";
+import type { Metadata } from "next";
+
+
+export const metadata: Metadata = {
+  title: "Homepage",
+};
 
 type SettingsResponse = {
   registration_enabled: boolean;

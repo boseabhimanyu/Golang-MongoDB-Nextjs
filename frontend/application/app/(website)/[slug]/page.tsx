@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import { notFound, redirect } from "next/navigation";
-
+import type { Metadata } from "next";
 type Page = {
   id: string;
   title: string;
@@ -15,6 +15,20 @@ type Page = {
 type PageResponse = {
   page: Page;
 };
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const page = await getPage(slug);
+
+  return {
+    // Just return the raw page title here...
+    title: page ? page.title : "Page Not Found",
+  };
+}
 
 async function getPage(slug: string): Promise<Page | null> {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL;

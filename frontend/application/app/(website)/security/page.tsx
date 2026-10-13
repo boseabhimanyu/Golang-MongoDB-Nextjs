@@ -2,7 +2,12 @@ import { redirect } from "next/navigation";
 
 import { getCurrentUser } from "@/lib/auth";
 import SecurityForm from "@/components/security/security-form";
+import type { Metadata } from "next";
 
+
+export const metadata: Metadata = {
+  title: "Security", 
+};
 export default async function SecurityPage() {
   const user = await getCurrentUser();
 
