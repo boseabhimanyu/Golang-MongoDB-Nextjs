@@ -2,7 +2,7 @@
 
 import axios from "axios";
 import { FormEvent, useState } from "react";
-
+import Link from "next/link";
 
 import api from "@/lib/api";
 import TwoFactorForm from "./two-factor-form";
@@ -87,7 +87,10 @@ export default function LoginForm({
       <div className="glass w-full max-w-md rounded-3xl p-6 sm:p-8">
         <div className="mb-8">
           <div className="mb-6 flex h-11 w-11 items-center justify-center rounded-2xl bg-black text-sm font-semibold text-white shadow-lg">
-            A
+            <Link 
+  href="/" >
+  A
+</Link>
           </div>
 
           <h1 className="text-3xl font-semibold tracking-tight">
@@ -171,6 +174,7 @@ export default function LoginForm({
   >
     Create an account
   </button>
+  
 </p>
       </div>
     </div>
