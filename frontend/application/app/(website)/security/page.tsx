@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 
 import { getCurrentUser } from "@/lib/auth";
-import SecurityForm from "@/components/security/security-form";
+import SecurityFormCore from "../components/security-form";
 import type { Metadata } from "next";
 
 
@@ -29,7 +29,7 @@ export default async function SecurityPage() {
         </div>
 
         <div className="mt-8">
-          <SecurityForm
+          <SecurityFormCore
             twoFactorEnabled={user.twoFactorEnabled}
           />
         </div>

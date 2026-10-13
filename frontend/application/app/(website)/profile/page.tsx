@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 
 import { getCurrentUser } from "@/lib/auth";
-import ProfileForm from "@/components/profile/profile-form";
+import ProfileFormRoot from "../components/profile-form";
 import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: " My Profile", 
@@ -28,7 +28,7 @@ export default async function ProfilePage() {
         </div>
 
         <div className="mt-8">
-          <ProfileForm user={user} />
+          <ProfileFormRoot user={user} />
         </div>
       </div>
     </main>
