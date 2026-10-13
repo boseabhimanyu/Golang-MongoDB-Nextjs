@@ -4,14 +4,8 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import api from "@/lib/api";
+import { User } from "@/lib/types";
 
-type User = {
-  id: string;
-  name?: string;
-  email?: string;
-  role?: string;
-  isAdmin?: boolean;
-};
 
 type AuthResponse = {
   user?: User | null;
@@ -53,8 +47,7 @@ const [position, setPosition] = useState({
   }, [checkSession, pathname]);
 
   const isAdmin =
-    user?.role?.toLowerCase() === "admin" ||
-    user?.isAdmin === true;
+    user?.role?.toLowerCase() === "admin"
 
   async function handleSignOut() {
     if (signingOut) return;
@@ -125,7 +118,7 @@ const [position, setPosition] = useState({
 
           <p className="mb-4 break-words text-sm text-slate-500">
             {user
-              ? `Signed in${user.name ? ` as ${user.name}` : ""}.`
+              ? `Signed in${user.firstName ? ` as ${user.firstName}` : ""}.`
               : "Sign in or create an account to get started."}
           </p>
 

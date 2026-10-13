@@ -301,14 +301,14 @@ export default async function Home() {
               </p>
             </Link>
 
-            <Link href="/forgot-password" className={cardClass}>
-              <h3 className="font-semibold">Forgot Password</h3>
+            <Link href="/security" className={cardClass}>
+              <h3 className="font-semibold">Activate 2FA</h3>
               <p className="mt-2 text-sm text-gray-600">
-                Request a password reset.
+                Turn on Two-factor authentication (2FA)
               </p>
             </Link>
 
-            <Link href="/reset-password" className={cardClass}>
+            <Link href="/security" className={cardClass}>
               <h3 className="font-semibold">Reset Password</h3>
               <p className="mt-2 text-sm text-gray-600">
                 Set a new password using a valid reset token.

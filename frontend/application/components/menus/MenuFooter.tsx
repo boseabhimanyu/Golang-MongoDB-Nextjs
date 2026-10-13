@@ -26,7 +26,7 @@ export default function MenuFooter({ menu }: { menu: Menu }) {
       </div>
 
       <div className="footer-bottom">
-        <span>© {new Date().getFullYear()} Your Brand</span>
+        <span>© {new Date().getFullYear()} Abhimanyu Bose</span>
         <span>All rights reserved.</span>
       </div>
     </footer>
