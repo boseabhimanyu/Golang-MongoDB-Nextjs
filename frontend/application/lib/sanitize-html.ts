@@ -17,12 +17,20 @@ const allowedTags = [
   "a",
   "code",
   "pre",
+  "span", 
+  "img",
 ];
 
 const allowedAttributes = [
   "href",
   "target",
   "rel",
+  "src",   
+  "alt",  
+  "width",
+  "height",
+  "class", 
+  "style", 
 ];
 
 export function sanitizeHtml(html: string) {
@@ -36,6 +44,9 @@ export function sanitizeHtml(html: string) {
 
     ALLOWED_URI_REGEXP:
       /^(?:(?:https?|mailto):|[^a-z]|[a-z+.-]+(?:[^a-z+.-:]|$))/i,
+    
+    // ALLOWED_URI_REGEXP:
+    //   /^(?:https:|[^a-z]|[a-z+.-]+(?:[^a-z+.-:]|$))/i, //Don't allow Http. Only Https 
 
     FORBID_TAGS: [
       "script",
@@ -53,7 +64,6 @@ export function sanitizeHtml(html: string) {
     ],
 
     FORBID_ATTR: [
-      "style",
       "onerror",
       "onclick",
       "onload",

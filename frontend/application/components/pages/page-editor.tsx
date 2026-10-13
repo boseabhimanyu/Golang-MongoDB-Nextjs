@@ -42,6 +42,18 @@ export default function PageEditor({
             "bullist numlist | " +
             "blockquote | " +
             "image | code", // Added code to toolbar so you can actually click it!
+          
+          // ==========================================
+          // TINYMCE SECURITY/FILTERING RULES
+          // ==========================================
+          valid_elements: 
+            'p[class|style|align],br,' +
+            'h1[class|style|align],h2[class|style|align],h3[class|style|align],' +
+            'strong,em,s,span[class|style|color],ul,ol,li,blockquote,' +
+            'hr,a[href|target|rel],img[src|alt|width|height|style|class]',
+          
+          invalid_elements: 'script,iframe,object,embed,form,input,button,textarea,select,svg,math',
+
           skin_url: "/tinymce/skins/ui/oxide",
           content_css: "/tinymce/skins/content/default/content.min.css",
           content_style: `
@@ -61,7 +73,7 @@ export default function PageEditor({
               object-fit: contain;
             }
           `,
-          image_protocols: ["http", "https"],
+          image_protocols: ["https"], // Strict https matching your backend policy
           image_dimensions: false,
           image_description: true,
           image_title: true,

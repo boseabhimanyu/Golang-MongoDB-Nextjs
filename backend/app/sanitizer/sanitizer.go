@@ -11,6 +11,10 @@ var policy = bluemonday.NewPolicy()
 // Regular expression that strictly validates safe hex color codes
 var hexColorRegex = regexp.MustCompile(`(?i)^#([0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$`)
 
+// Safe class name regex (e.g., allows custom styling classes like "highlight", "text-muted", "badge-primary")
+// Restricts to standard alphanumeric characters, hyphens, and underscores.
+var safeClassRegex = regexp.MustCompile(`^[a-zA-Z0-9-_]+(\s+[a-zA-Z0-9-_]+)*$`)
+
 func init() {
 	policy.AllowElements(
 		"p",
@@ -48,6 +52,13 @@ func init() {
 		"width",
 		"height",
 	).OnElements("img")
+
+	// ==========================================
+	// SECURELY ALLOWING CLASSES
+	// ==========================================
+	policy.AllowAttrs("class").
+		Matching(safeClassRegex).
+		OnElements("p", "span", "h1", "h2", "h3", "blockquote")
 
 	// Inline styles
 	policy.AllowAttrs("style").OnElements(
