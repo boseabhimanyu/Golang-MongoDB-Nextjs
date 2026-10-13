@@ -1,7 +1,9 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import api from "@/lib/api";
 import axios from "axios";
+import { getCurrentUser } from "@/lib/auth"; // Import your auth helper
 import BackupCodesWarning from "@/components/dashboard/backup-codes-warning";
 
 async function getDashboardData() {
@@ -58,6 +60,16 @@ async function getDashboardData() {
 }
 
 export default async function DashboardPage() {
+  // 1. Fetch current user and check role
+  const user = await getCurrentUser();
+  
+  const isAdmin = user?.role?.toLowerCase() === "admin";
+
+  // 2. If not an admin, redirect immediately to the frontpage
+  if (!isAdmin) {
+    redirect("/");
+  }
+
   const stats = await getDashboardData();
 
   return (
