@@ -148,7 +148,17 @@ const [position, setPosition] = useState({
                     Dashboard
                   </Link>
                 )}
-
+                {!isAdmin && (
+                  <Link
+                    href="/security"
+                    className="rounded-lg bg-blue-600 px-4 py-2.5
+                      text-center text-sm font-medium text-white
+                      transition hover:bg-blue-700"
+                  >
+                    Security
+                  </Link>
+                )}
+              
                 <Link
                   href="/profile"
                   className="rounded-lg bg-slate-900 px-4 py-2.5

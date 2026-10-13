@@ -41,6 +41,12 @@ export default async function DashboardLayout({
           <nav className="p-3">
   <div className="space-y-1">
     <Link
+      href="/"
+      className="block rounded-xl px-3 py-2.5 text-sm font-medium transition-colors hover:bg-white/50"
+    >
+      Frontpage
+    </Link>
+    <Link
       href="/dashboard"
       className="block rounded-xl px-3 py-2.5 text-sm font-medium transition-colors hover:bg-white/50"
     >
