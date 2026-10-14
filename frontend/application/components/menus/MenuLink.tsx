@@ -1,32 +1,36 @@
 import Link from "next/link";
 import type { MenuItem } from "./menu-types";
 
-export default function MenuLink({
+export default function MenuLink({ 
   item,
-}: {
-  item: MenuItem;
+ }: {
+   item: MenuItem;
 }) {
-  const url = item.url?.trim();
+  const url = item.url?.trim() || "";
 
+  // If there's no URL, render just the label
   if (!url) {
-    return <span>{item.label}</span>;
+    return <span className="menu-label">{item.label}</span>;
   }
 
   // External links stay unchanged.
   if (/^https?:\/\//i.test(url)) {
     return (
-      <a href={url} target="_blank" rel="noopener noreferrer">
+      <a href={url} target="_blank" rel="noopener noreferrer" className="menu-link">
         {item.label}
       </a>
     );
   }
 
-  // Convert /pages/quality-certifications
-  // into /quality-certifications for frontend page links.
+  // Convert /pages/:slug or type === "page" into clean /slug paths
   const internalUrl =
-    item.type === "page"
+    item.type === "page" || url.startsWith("/pages/")
       ? url.replace(/^\/pages\//, "/")
       : url;
 
-  return <Link href={internalUrl}>{item.label}</Link>;
+  return (
+    <Link href={internalUrl} className="menu-link">
+      {item.label}
+    </Link>
+  );
 }
