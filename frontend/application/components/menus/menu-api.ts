@@ -1,8 +1,7 @@
 import type { Menu, MenuResponse } from "./menu-types";
+import api from "@/lib/api";
 
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_BASE_URL ??
-  "http://localhost:5000/api/v1";
+const API_BASE = api.defaults.baseURL;
 
 export async function fetchMenu(
   location: "top" | "left" | "bottom"
