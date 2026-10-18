@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { notFound, redirect } from "next/navigation";
+import styles from "./editor-typography.module.css"; 
 import type { Metadata } from "next";
 type Page = {
   id: string;
@@ -110,7 +111,7 @@ export default async function Page({
         </header>
 
         <div
-          className="page-editor-content mt-8"
+          className={`${styles.typographyContainer} mt-8`}
           dangerouslySetInnerHTML={{
             __html: page.content,
           }}
