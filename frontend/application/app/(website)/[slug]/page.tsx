@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import styles from "./editor-typography.module.css"; 
+import "../../../styles/page-custom-styles.css"
 import type { Metadata } from "next";
 type Page = {
   id: string;

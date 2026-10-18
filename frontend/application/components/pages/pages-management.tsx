@@ -17,6 +17,8 @@ import type {
   PagesResponse,
 } from "@/lib/types";
 
+import styles from "../../app/(website)/[slug]/editor-typography.module.css"
+import "../../styles/page-custom-styles.css"
 // Dynamic import with SSR disabled to prevent hydration errors with TinyMCE
 const PageEditor = dynamic(
   () => import("@/components/pages/page-editor"),
@@ -687,7 +689,7 @@ export default function PagesManagement() {
               </div>
 
               {/* Content Body */}
-              <div className="prose max-w-none pt-6 text-zinc-800">
+              <div className={`pt-6 text-zinc-800 ${styles.typographyContainer}`}>
                 {viewingPage.content ? (
                   <div
                     dangerouslySetInnerHTML={{

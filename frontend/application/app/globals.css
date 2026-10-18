@@ -89,8 +89,3 @@ img {
   backdrop-filter: blur(var(--glass-blur));
   -webkit-backdrop-filter: blur(var(--glass-blur));
 }
-
-.page-content {
-  flex: 1;
-  min-width: 0;
-}
