@@ -5,6 +5,7 @@ import MenuHeader from "./MenuHeader";
 import MenuSidebar from "./MenuSidebar";
 import MenuFooter from "./MenuFooter";
 import type { Menu } from "./menu-types";
+import "./DynamicMenus.css";
 
 type InitialMenus = {
   top: Menu | null;
