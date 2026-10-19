@@ -77,7 +77,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
-
+*.tsbuildinfo
 # Ignore completely generated SDKs or server stubs
 /generated-sources/
 /swagger-codegen-output/
