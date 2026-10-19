@@ -21,7 +21,7 @@ async function getDashboardData() {
       api.get("/admin/menus", {
         headers: { Cookie: cookieHeader },
       }),
-      axios.get("http://localhost:5000/health"),
+      axios.get(`${process.env.NEXT_PUBLIC_HEALTH_URL}/health`),
     ]);
 
     const userCount = 
