@@ -17,6 +17,10 @@ export type Menu = {
 };
 
 export type MenuResponse = {
-  menu?: Menu;
+  menus?: {
+    top?: Menu;
+    left?: Menu;
+    bottom?: Menu;
+  };
   error?: string;
 };

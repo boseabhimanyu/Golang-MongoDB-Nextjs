@@ -8,24 +8,19 @@ export async function fetchMenu(
 ): Promise<Menu | null> {
   try {
     const response = await fetch(
-      `${API_BASE}/menus/${location}`,
+      `${API_BASE}/menus`,
       { cache: "no-store" }
     );
 
-    if (!response.ok) return null;
+    if (!response.ok) {
+      throw new Error(`Failed to fetch ${location} menu`);
+    }
 
     const data: MenuResponse = await response.json();
 
-    if (
-      !data.menu ||
-      data.menu.status !== true ||
-      !Array.isArray(data.menu.items)
-    ) {
-      return null;
-    }
-
-    return data.menu;
-  } catch {
+    return data.menus?.[location] ?? null;
+  } catch (error) {
+    console.error(`Error fetching ${location} menu:`, error);
     return null;
   }
 }

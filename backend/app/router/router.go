@@ -366,7 +366,7 @@ func NewRouter(
 	admin.DELETE("/pages/:id", pageHandler.Delete)
 
 	// Public menus
-	api.GET("/menus/:location", menuHandler.GetPublicByLocation)
+	// api.GET("/menus/:location", menuHandler.GetPublicByLocation)
 	api.GET("/menus", menuHandler.GetAllPublic)
 
 	// Admin menus
