@@ -1,7 +1,7 @@
 "use client";
 
 import axios from "axios";
-import DOMPurify from "dompurify";
+import DOMPurify from "isomorphic-dompurify";
 import {
   FormEvent,
   useEffect,
