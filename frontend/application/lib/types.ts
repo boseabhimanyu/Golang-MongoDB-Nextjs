@@ -30,6 +30,7 @@ export type Page = {
   authorId: string;
   slug: string;
   visibility: PageVisibility;
+  isHomepage: boolean;
   createdAt: string;
   updatedAt: string;
 };
