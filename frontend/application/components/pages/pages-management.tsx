@@ -152,42 +152,25 @@ const [updatingHomepage, setUpdatingHomepage] = useState(false);
     }
   }
 
-  async function loadHomepagePages() {
+async function loadHomepagePages() {
+  setLoadingHomepagePages(true);
+
   try {
-    setLoadingHomepagePages(true);
+    const allPages: Page[] = [];
+    let currentPage = 1;
+    let lastPage = 1;
 
-    let pageNumber = 1;
-    let totalPagesCount = 1;
-
-    const collectedPages: Page[] = [];
-
-    while (pageNumber <= totalPagesCount) {
+    do {
       const response = await api.get<PagesResponse>(
-        "/admin/pages",
-        {
-          params: {
-            visibility: "public",
-            page: pageNumber,
-            limit: 20,
-          },
-        },
+        `/admin/pages?visibility=public&page=${currentPage}&limit=20`,
       );
 
-      collectedPages.push(...(response.data.pages ?? []));
+      allPages.push(...(response.data.pages ?? []));
+      lastPage = response.data.pagination?.totalPages ?? 1;
+      currentPage += 1;
+    } while (currentPage <= lastPage);
 
-      totalPagesCount =
-        response.data.pagination?.totalPages ?? 1;
-
-      pageNumber++;
-    }
-
-    setPublicPages(collectedPages);
-
-    const homepage = collectedPages.find(
-      (item) => item.isHomepage,
-    );
-
-    setSelectedHomepageId(homepage?.id ?? "");
+    setPublicPages(allPages);
   } catch (error) {
     showNotification(
       getErrorMessage(error, "Unable to load public pages."),
@@ -989,7 +972,7 @@ const currentHomepage = publicPages.find(
       </div>
 
       <div className="mt-6 space-y-4">
-        <div className="relative">
+        {/* <div className="relative">
           <Search className="absolute left-3 top-3 h-4 w-4 text-zinc-400" />
 
           <input
@@ -1002,7 +985,7 @@ const currentHomepage = publicPages.find(
             placeholder="Search pages by title..."
             className="w-full rounded-xl border border-zinc-300 bg-white/80 py-2.5 pl-10 pr-3 text-sm outline-none focus:border-zinc-500 focus:ring-2 focus:ring-zinc-200"
           />
-        </div>
+        </div> */}
 
         <div>
           <label className="mb-1.5 block text-sm font-medium text-zinc-800">
