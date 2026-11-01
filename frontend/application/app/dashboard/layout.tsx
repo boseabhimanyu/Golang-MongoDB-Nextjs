@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 
 import { getCurrentUser } from "@/lib/auth";
 import LogoutButton from "@/components/auth/logout-button";
+import DashboardNavigation from "./dashboard-navigation";
 
 export default async function DashboardLayout({
   children,
@@ -42,7 +43,7 @@ export default async function DashboardLayout({
   return (
     <div className="min-h-screen">
       <header className="glass-strong sticky top-4 z-40 mx-4 rounded-2xl sm:mx-6 lg:mx-8">
-        <div className="flex min-h-16 items-center justify-between gap-4 px-4 sm:px-6">
+        <div className="flex min-h-16 items-center justify-between gap-4 pl-14 pr-4 sm:px-6 md:pl-6">
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold">
               {fullName || user.username}
@@ -57,74 +58,8 @@ export default async function DashboardLayout({
         </div>
       </header>
 
-      <div className="flex min-h-[calc(100vh-2rem)] gap-4 p-4 sm:gap-6 sm:p-6 lg:gap-8 lg:p-8">
-        <aside className="glass hidden w-60 shrink-0 rounded-2xl lg:block">
-          <nav className="p-3">
-            <div className="space-y-1">
-              <Link
-                href="/"
-                className="block rounded-xl px-3 py-2.5 text-sm font-medium transition-colors hover:bg-white/50"
-              >
-                Frontpage
-              </Link>
-              <Link
-                href="/dashboard"
-                className="block rounded-xl px-3 py-2.5 text-sm font-medium transition-colors hover:bg-white/50"
-              >
-                Dashboard
-              </Link>
-
-              <div className="ml-3 space-y-1 pl-3">
-                <Link
-                  href="/dashboard/profile"
-                  className="block rounded-xl px-3 py-2 text-sm text-zinc-600 transition-colors hover:bg-white/50 hover:text-zinc-900"
-                >
-                  My profile
-                </Link>
-
-                <Link
-                  href="/dashboard/security"
-                  className="block rounded-xl px-3 py-2 text-sm text-zinc-600 transition-colors hover:bg-white/50 hover:text-zinc-900"
-                >
-                  Security
-                </Link>
-              </div>
-
-              {isAdmin && (
-                <Link
-                  href="/dashboard/customers"
-                  className="block rounded-xl px-3 py-2.5 text-sm font-medium transition-colors hover:bg-white/50"
-                >
-                  Customers
-                </Link>
-              )}
-              {isAdmin && (
-                <Link
-                  href="/dashboard/pages"
-                  className="block rounded-xl px-3 py-2.5 text-sm font-medium transition-colors hover:bg-white/50"
-                >
-                  Pages
-                </Link>
-              )}
-              {isAdmin && (
-                <Link
-                  href="/dashboard/settings"
-                  className="block rounded-xl px-3 py-2.5 text-sm font-medium transition-colors hover:bg-white/50"
-                >
-                  Settings
-                </Link>
-              )}
-              {isAdmin && (
-                <Link
-                  href="/dashboard/menus"
-                  className="block rounded-xl px-3 py-2.5 text-sm font-medium transition-colors hover:bg-white/50"
-                >
-                  Menu Settings
-                </Link>
-              )}
-            </div>
-          </nav>
-        </aside>
+      <div className="flex min-h-[calc(100vh-2rem)] flex-col gap-3 p-4 sm:gap-6 sm:p-6 md:flex-row lg:gap-8 lg:p-8">
+        <DashboardNavigation isAdmin={isAdmin} />
 
         <main className="min-w-0 flex-1">
           {children}
