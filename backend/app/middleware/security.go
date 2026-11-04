@@ -17,25 +17,32 @@ func SecurityMiddleware() gin.HandlerFunc {
 		// Prevent clickjacking via iframes
 		FrameDeny: true,
 
+		// Filter XSS on older browsers
+		BrowserXssFilter: true,
+
 		// Referrer policy
 		ReferrerPolicy: "strict-origin-when-cross-origin",
 
-		// HTTPS configuration.
+		// HTTPS / HSTS options (disabled in local dev)
 		IsDevelopment: isDev,
-		SSLRedirect:   !isDev,
 
-		// HSTS configuration.
+		// Render handles HTTPS redirection.
+		SSLRedirect: false,
+
+		// Keep HSTS enabled in production.
 		STSSeconds:           31536000,
-		STSIncludeSubdomains: false,
-		STSPreload:           false,
+		STSIncludeSubdomains: !isDev, // 1 year
+		STSPreload:           !isDev,
 	})
 
 	return func(c *gin.Context) {
+		// Process sets headers and handles SSL redirects if enabled
 		if err := sec.Process(c.Writer, c.Request); err != nil {
 			c.Abort()
 			return
 		}
 
+		// Continue downstream handlers
 		c.Next()
 	}
 }
