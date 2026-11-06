@@ -257,9 +257,20 @@ export default function PagesManagement() {
     loadPages();
   }, [page, visibilityFilter]);
 
-  function handleViewPage(selectedPage: Page) {
-    setViewingPage(selectedPage);
+  async function handleViewPage(selectedPage: Page) {
+  try {
+    const response = await api.get<{ page: Page }>(
+      `/admin/pages/${selectedPage.id}`
+    );
+
+    setViewingPage(response.data.page);
+  } catch (error) {
+    showNotification(
+      getErrorMessage(error, "Unable to load page preview."),
+      "error"
+    );
   }
+}
 
     // Opens the live URL in a new browser tab/window
   function handleViewNewPage(selectedPage: Page) {
@@ -867,9 +878,9 @@ export default function PagesManagement() {
                     </span>
                   </div>
                   {viewingPage.slug && (
-                    <p className="mt-1 text-xs text-zinc-500">
+                    <span className="mt-1 text-xs text-zinc-500">
                       Slug: /{viewingPage.slug}
-                    </p>
+                    </span>
                   )}
                 </div>
 
