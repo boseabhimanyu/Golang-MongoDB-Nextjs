@@ -38,6 +38,7 @@ type PageForm = {
   content: string;
   visibility: PageVisibility;
   slug: string;
+  css: string;
 };
 
 const emptyForm: PageForm = {
@@ -45,6 +46,7 @@ const emptyForm: PageForm = {
   content: "",
   visibility: "public",
   slug: "",
+  css: "",
 };
 
 function getErrorMessage(
@@ -277,31 +279,46 @@ async function removeHomepage(selectedPageId: string) {
     setViewingPage(null);
   }
 
-  function openCreate() {
-    setEditingPage(null);
+function openCreate() {
+  setEditingPage(null);
+
+  setForm({
+    title: "",
+    content: "",
+    visibility: "public",
+    slug: "",
+    css: "",
+  });
+
+  setShowEditor(true);
+}
+
+  async function openEdit(selectedPage: Page) {
+  try {
+    const response = await api.get<{ page: Page }>(
+      `/admin/pages/${selectedPage.id}`,
+    );
+
+    const fullPage = response.data.page;
+
+    setEditingPage(fullPage);
 
     setForm({
-      title: "",
-      content: "",
-      visibility: "public",
-      slug: "",
+      title: fullPage.title,
+      content: fullPage.content,
+      visibility: fullPage.visibility,
+      slug: fullPage.slug,
+      css: fullPage.css ?? "",
     });
 
     setShowEditor(true);
+  } catch (error) {
+    showNotification(
+      getErrorMessage(error, "Unable to load page details."),
+      "error",
+    );
   }
-
-  function openEdit(selectedPage: Page) {
-    setEditingPage(selectedPage);
-
-    setForm({
-      title: selectedPage.title,
-      content: selectedPage.content,
-      visibility: selectedPage.visibility,
-      slug: selectedPage.slug,
-    });
-
-    setShowEditor(true);
-  }
+}
 
   function closeEditor() {
     if (saving) {
@@ -333,15 +350,17 @@ async function removeHomepage(selectedPageId: string) {
     try {
       if (editingPage) {
         const payload: {
-          title: string;
-          content: string;
-          visibility: PageVisibility;
-          slug?: string;
-        } = {
-          title,
-          content: form.content,
-          visibility: form.visibility,
-        };
+            title: string;
+            content: string;
+            visibility: PageVisibility;
+            slug?: string;
+            css: string;
+          } = {
+            title,
+            content: form.content,
+            visibility: form.visibility,
+            css: form.css,
+          };
 
         if (title !== "") {
           payload.slug = form.slug.trim();
@@ -364,6 +383,7 @@ async function removeHomepage(selectedPageId: string) {
             title,
             content: form.content,
             visibility: form.visibility,
+            css: form.css,
           },
         );
 
@@ -770,6 +790,29 @@ const currentHomepage = publicPages.find(
                       }))
                     }
                   />
+<div className="mt-5">
+  <label className="mb-2 block text-sm font-medium text-zinc-700">
+    Custom CSS
+  </label>
+
+  <textarea
+    value={form.css}
+    onChange={(event) =>
+      setForm((current) => ({
+        ...current,
+        css: event.target.value,
+      }))
+    }
+    placeholder="Enter custom CSS..."
+    rows={10}
+    spellCheck={false}
+    className="w-full rounded-xl border border-white/80 bg-white/55 px-4 py-3 font-mono text-sm outline-none backdrop-blur-xl transition focus:border-zinc-300 focus:bg-white/75"
+  />
+
+  <p className="mt-1 text-xs text-zinc-500">
+    Custom CSS associated with this page.
+  </p>
+</div>
                 </div>
 
                 <div className="flex justify-end gap-3 border-t border-white/70 pt-5">

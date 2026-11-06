@@ -33,6 +33,7 @@ export type Page = {
   isHomepage: boolean;
   createdAt: string;
   updatedAt: string;
+  css?: string;
 };
 
 export type PagesPagination = {
