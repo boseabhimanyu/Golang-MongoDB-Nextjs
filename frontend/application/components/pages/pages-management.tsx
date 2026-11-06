@@ -20,7 +20,7 @@ import type {
 import styles from "../../app/(website)/[slug]/editor-typography.module.css"
 import "../../styles/page-custom-styles.css"
 import { Home, Search, X } from "lucide-react";
-
+import { scopePageCss } from "@/lib/scope-page-css";
 // Dynamic import with SSR disabled to prevent hydration errors with TinyMCE
 const PageEditor = dynamic(
   () => import("@/components/pages/page-editor"),
@@ -94,16 +94,15 @@ export default function PagesManagement() {
 
   const [homepageModalOpen, setHomepageModalOpen] = useState(false);
 
-  const [publicPages, setPublicPages] = useState<Page[]>([]);
+const [publicPages, setPublicPages] = useState<Page[]>([]);
 
-  const [homepageSearch, setHomepageSearch] = useState("");
+const [homepageSearch, setHomepageSearch] = useState("");
 
-  const [selectedHomepageId, setSelectedHomepageId] = useState("");
+const [selectedHomepageId, setSelectedHomepageId] = useState("");
 
-  const [loadingHomepagePages, setLoadingHomepagePages] = useState(false);
+const [loadingHomepagePages, setLoadingHomepagePages] = useState(false);
 
-  const [updatingHomepage, setUpdatingHomepage] = useState(false);
-
+const [updatingHomepage, setUpdatingHomepage] = useState(false);
   // State to track which page is pending confirmation
   const [pageToDelete, setPageToDelete] = useState<Page | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -156,123 +155,122 @@ export default function PagesManagement() {
     }
   }
 
-  async function loadHomepagePages() {
-    setLoadingHomepagePages(true);
+async function loadHomepagePages() {
+  setLoadingHomepagePages(true);
 
-    try {
-      const allPages: Page[] = [];
-      let currentPage = 1;
-      let lastPage = 1;
+  try {
+    const allPages: Page[] = [];
+    let currentPage = 1;
+    let lastPage = 1;
 
-      do {
-        const response = await api.get<PagesResponse>(
-          `/admin/pages?visibility=public&page=${currentPage}&limit=20`,
-        );
-
-        allPages.push(...(response.data.pages ?? []));
-        lastPage = response.data.pagination?.totalPages ?? 1;
-        currentPage += 1;
-      } while (currentPage <= lastPage);
-
-      setPublicPages(allPages);
-    } catch (error) {
-      showNotification(
-        getErrorMessage(error, "Unable to load public pages."),
-        "error",
+    do {
+      const response = await api.get<PagesResponse>(
+        `/admin/pages?visibility=public&page=${currentPage}&limit=20`,
       );
-    } finally {
-      setLoadingHomepagePages(false);
-    }
+
+      allPages.push(...(response.data.pages ?? []));
+      lastPage = response.data.pagination?.totalPages ?? 1;
+      currentPage += 1;
+    } while (currentPage <= lastPage);
+
+    setPublicPages(allPages);
+  } catch (error) {
+    showNotification(
+      getErrorMessage(error, "Unable to load public pages."),
+      "error",
+    );
+  } finally {
+    setLoadingHomepagePages(false);
   }
+}
 
-  async function openHomepageModal() {
-    setHomepageModalOpen(true);
+async function openHomepageModal() {
+  setHomepageModalOpen(true);
+  setHomepageSearch("");
 
+  await loadHomepagePages();
+}
 
+async function setHomepage(selectedPageId: string) {
+  if (!selectedPageId || updatingHomepage) return;
+
+  try {
+    setUpdatingHomepage(true);
+
+    const response = await api.patch(
+      `/admin/pages/${selectedPageId}/homepage`,
+      {
+        isHomepage: true,
+      },
+    );
+
+    showNotification(
+      response.data?.message ?? "Homepage assigned successfully.",
+      "success",
+    );
+
+    await loadPages();
     await loadHomepagePages();
+  } catch (error) {
+    showNotification(
+      getErrorMessage(error, "Unable to assign homepage."),
+      "error",
+    );
+  } finally {
+    setUpdatingHomepage(false);
   }
+}
 
-  async function setHomepage(selectedPageId: string) {
-    if (!selectedPageId || updatingHomepage) return;
+async function removeHomepage(selectedPageId: string) {
+  if (!selectedPageId || updatingHomepage) return;
 
-    try {
-      setUpdatingHomepage(true);
+  try {
+    setUpdatingHomepage(true);
 
-      const response = await api.patch(
-        `/admin/pages/${selectedPageId}/homepage`,
-        {
-          isHomepage: true,
-        },
-      );
+    const response = await api.patch(
+      `/admin/pages/${selectedPageId}/homepage`,
+      {
+        isHomepage: false,
+      },
+    );
 
-      showNotification(
-        response.data?.message ?? "Homepage assigned successfully.",
-        "success",
-      );
+    showNotification(
+      response.data?.message ?? "Homepage designation removed.",
+      "success",
+    );
 
-      await loadPages();
-      await loadHomepagePages();
-
-    } catch (error) {
-      showNotification(
-        getErrorMessage(error, "Unable to assign homepage."),
-        "error",
-      );
-    } finally {
-      setUpdatingHomepage(false);
-    }
+    await loadPages();
+    await loadHomepagePages();
+  } catch (error) {
+    showNotification(
+      getErrorMessage(error, "Unable to remove homepage."),
+      "error",
+    );
+  } finally {
+    setUpdatingHomepage(false);
   }
-
-  async function removeHomepage(selectedPageId: string) {
-    if (!selectedPageId || updatingHomepage) return;
-
-    try {
-      setUpdatingHomepage(true);
-
-      const response = await api.patch(
-        `/admin/pages/${selectedPageId}/homepage`,
-        {
-          isHomepage: false,
-        },
-      );
-
-      showNotification(
-        response.data?.message ?? "Homepage designation removed.",
-        "success",
-      );
-
-      await loadPages();
-      await loadHomepagePages();
-    } catch (error) {
-      showNotification(
-        getErrorMessage(error, "Unable to remove homepage."),
-        "error",
-      );
-    } finally {
-      setUpdatingHomepage(false);
-    }
-  }
+}
 
   useEffect(() => {
     loadPages();
   }, [page, visibilityFilter]);
 
-  async function handleViewPage(selectedPage: Page) {
+async function handleViewPage(selectedPage: Page) {
   try {
     const response = await api.get<{ page: Page }>(
-      `/admin/pages/${selectedPage.id}`
+      `/admin/pages/${selectedPage.id}`,
     );
 
     setViewingPage(response.data.page);
   } catch (error) {
     showNotification(
       getErrorMessage(error, "Unable to load page preview."),
-      "error"
+      "error",
     );
   }
 }
 
-    // Opens the live URL in a new browser tab/window
+  // Opens the live URL in a new browser tab/window
   function handleViewNewPage(selectedPage: Page) {
     if (!selectedPage.slug) {
       showNotification(
@@ -293,46 +291,46 @@ export default function PagesManagement() {
     setViewingPage(null);
   }
 
-  function openCreate() {
-    setEditingPage(null);
+function openCreate() {
+  setEditingPage(null);
+
+  setForm({
+    title: "",
+    content: "",
+    visibility: "public",
+    slug: "",
+    css: "",
+  });
+
+  setShowEditor(true);
+}
+
+  async function openEdit(selectedPage: Page) {
+  try {
+    const response = await api.get<{ page: Page }>(
+      `/admin/pages/${selectedPage.id}`,
+    );
+
+    const fullPage = response.data.page;
+
+    setEditingPage(fullPage);
 
     setForm({
-      title: "",
-      content: "",
-      visibility: "public",
-      slug: "",
-      css: "",
+      title: fullPage.title,
+      content: fullPage.content,
+      visibility: fullPage.visibility,
+      slug: fullPage.slug,
+      css: fullPage.css ?? "",
     });
 
     setShowEditor(true);
+  } catch (error) {
+    showNotification(
+      getErrorMessage(error, "Unable to load page details."),
+      "error",
+    );
   }
-
-  // Fetch the full individual page data (which includes the CSS field) when opening edit mode
-  async function openEdit(selectedPage: Page) {
-    try {
-      const response = await api.get<{ page: Page }>(
-        `/admin/pages/${selectedPage.id}`
-      );
-      const fullPage = response.data.page;
-
-      setEditingPage(fullPage);
-
-      setForm({
-        title: fullPage.title,
-        content: fullPage.content,
-        visibility: fullPage.visibility,
-        slug: fullPage.slug,
-        css: fullPage.css ?? "",
-      });
-
-      setShowEditor(true);
-    } catch (error) {
-      showNotification(
-        getErrorMessage(error, "Unable to load page details for editing."),
-        "error"
-      );
-    }
-  }
+}
 
   function closeEditor() {
     if (saving) {
@@ -364,17 +362,17 @@ export default function PagesManagement() {
     try {
       if (editingPage) {
         const payload: {
-          title: string;
-          content: string;
-          visibility: PageVisibility;
-          slug?: string;
-          css: string;
-        } = {
-          title,
-          content: form.content,
-          visibility: form.visibility,
-          css: form.css,
-        };
+            title: string;
+            content: string;
+            visibility: PageVisibility;
+            slug?: string;
+            css: string;
+          } = {
+            title,
+            content: form.content,
+            visibility: form.visibility,
+            css: form.css,
+          };
 
         if (title !== "") {
           payload.slug = form.slug.trim();
@@ -476,45 +474,45 @@ export default function PagesManagement() {
   });
 
   const filteredHomepagePages: Page[] = publicPages.filter((item) =>
-    item.title
-      .toLowerCase()
-      .includes(homepageSearch.trim().toLowerCase()),
-  );
+  item.title
+    .toLowerCase()
+    .includes(homepageSearch.trim().toLowerCase()),
+);
 
-  const currentHomepage = publicPages.find(
-    (item) => item.isHomepage,
-  );
+const currentHomepage = publicPages.find(
+  (item) => item.isHomepage,
+);
 
   return (
     <>
       <div className="glass rounded-3xl p-4 sm:p-5 lg:p-6">
         {/* Smoked Liquid Glass Header Bar */}
         <div className="relative overflow-hidden rounded-2xl border border-white/70 bg-zinc-900/[0.07] p-5 shadow-[0_4px_20px_rgba(0,0,0,0.03)] backdrop-blur-xl transition-all">
-                  {/* Specular light highlight */}
+          {/* Specular light highlight */}
           <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/80 to-transparent" />
 
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <select
-                value={visibilityFilter}
-                onChange={(event) => {
-                  setVisibilityFilter(event.target.value as "" | PageVisibility);
-                  setPage(1);
-                }}
-                className="rounded-xl border border-white/80 bg-white/95 px-4 py-2.5 text-sm outline-none backdrop-blur-xl"
-              >
-                <option value="">All visibility</option>
-                <option value="public">Public</option>
-                <option value="registered">Registered</option>
-              </select>
+            value={visibilityFilter}
+            onChange={(event) => {
+              setVisibilityFilter(event.target.value as "" | PageVisibility);
+              setPage(1);
+            }}
+            className="rounded-xl border border-white/80 bg-white/95 px-4 py-2.5 text-sm outline-none backdrop-blur-xl"
+          >
+            <option value="">All visibility</option>
+            <option value="public">Public</option>
+            <option value="registered">Registered</option>
+          </select>
             </div>
-            <input
-              type="search"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search pages..."
-              className="min-w-0 flex-1 rounded-xl border border-white/80 bg-white/95 px-4 py-2.5 text-sm outline-none backdrop-blur-xl transition focus:border-zinc-300 focus:bg-white/75"
-            />
+<input
+            type="search"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search pages..."
+            className="min-w-0 flex-1 rounded-xl border border-white/80 bg-white/95 px-4 py-2.5 text-sm outline-none backdrop-blur-xl transition focus:border-zinc-300 focus:bg-white/75"
+          />
             <button
               type="button"
               onClick={openCreate}
@@ -523,13 +521,13 @@ export default function PagesManagement() {
               + Create page
             </button>
             <button
-              type="button"
-              onClick={openHomepageModal}
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-zinc-800 active:scale-[0.98]"
-            >
-              <Home className="h-4 w-4" />
-              Manage Homepage
-            </button>
+  type="button"
+  onClick={openHomepageModal}
+  className="inline-flex items-center justify-center gap-2 rounded-xl bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-zinc-800 active:scale-[0.98]"
+>
+  <Home className="h-4 w-4" />
+  Manage Homepage
+</button>
           </div>
         </div>
 
@@ -579,48 +577,48 @@ export default function PagesManagement() {
                           : "Registered"}
                       </span>
                       {item.isHomepage && (
-                        <span className="rounded-full border border-blue-600/20 bg-blue-500/15 px-2.5 py-0.5 text-xs font-semibold text-blue-800">
-                          Homepage
-                        </span>
-                      )}
+  <span className="rounded-full border border-blue-600/20 bg-blue-500/15 px-2.5 py-0.5 text-xs font-semibold text-blue-800">
+    Homepage
+  </span>
+)}
                     </div>
                           
                     <p className="mt-1 text-xs text-zinc-500">
                       Updated {new Date(item.updatedAt).toLocaleString()}
                       <button
-                        type="button"
-                        onClick={() => 
-                          handleViewPage(item)
-                        }
-                        className="mt-1 block truncate text-left text-sm text-zinc-500 transition hover:text-zinc-800 hover:underline"
-                      >
-                        /{item.slug}
-                      </button>
+                      type="button"
+                      onClick={() =>
+                        handleViewPage(item)
+                      }
+                      className="mt-1 block truncate text-left text-sm text-zinc-500 transition hover:text-zinc-800 hover:underline"
+                    >
+                      /{item.slug}
+                    </button>
                     </p>
                   </div>
                       
                   <div className="flex flex-wrap items-center gap-2">
-                    {item.visibility === "public" && (
-                      item.isHomepage ? (
-                        <button
-                          type="button"
-                          onClick={() => removeHomepage(item.id)}
-                          disabled={updatingHomepage}
-                          className="rounded-xl border border-red-200/90 bg-red-100/70 px-3 py-2 text-sm font-medium text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                          Remove homepage
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => setHomepage(item.id)}
-                          disabled={updatingHomepage}
-                          className="rounded-xl border border-white/90 bg-white/85 px-3 py-2 text-sm font-medium text-zinc-800 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                          Set as homepage
-                        </button>
-                      )
-                    )}
+                     {item.visibility === "public" && (
+  item.isHomepage ? (
+    <button
+      type="button"
+      onClick={() => removeHomepage(item.id)}
+      disabled={updatingHomepage}
+      className="rounded-xl border border-red-200/90 bg-red-100/70 px-3 py-2 text-sm font-medium text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+    >
+      Remove homepage
+    </button>
+  ) : (
+    <button
+      type="button"
+      onClick={() => setHomepage(item.id)}
+      disabled={updatingHomepage}
+      className="rounded-xl border border-white/90 bg-white/85 px-3 py-2 text-sm font-medium text-zinc-800 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
+    >
+      Set as homepage
+    </button>
+  )
+)}
                     <button
                       type="button"
                       onClick={() => handleViewPage(item)}
@@ -804,25 +802,29 @@ export default function PagesManagement() {
                       }))
                     }
                   />
-                </div>
+<div className="mt-5">
+  <label className="mb-2 block text-sm font-medium text-zinc-700">
+    Custom CSS
+  </label>
 
-                                <div>
-                  <label className="mb-2 block text-sm font-medium text-zinc-700">
-                    Custom CSS (Optional)
-                  </label>
+  <textarea
+    value={form.css}
+    onChange={(event) =>
+      setForm((current) => ({
+        ...current,
+        css: event.target.value,
+      }))
+    }
+    placeholder="Enter custom CSS..."
+    rows={10}
+    spellCheck={false}
+    className="w-full rounded-xl border border-white/80 bg-white/55 px-4 py-3 font-mono text-sm outline-none backdrop-blur-xl transition focus:border-zinc-300 focus:bg-white/75"
+  />
 
-                  <textarea
-                    rows={6}
-                    value={form.css}
-                    onChange={(event) =>
-                      setForm((current) => ({
-                        ...current,
-                        css: event.target.value,
-                      }))
-                    }
-                    placeholder="/* e.g., h1 { color: blue; } */"
-                    className="w-full font-mono rounded-xl border border-white/80 bg-white/55 px-4 py-3 text-sm outline-none backdrop-blur-xl transition focus:border-zinc-300 focus:bg-white/75"
-                  />
+  <p className="mt-1 text-xs text-zinc-500">
+    Custom CSS associated with this page.
+  </p>
+</div>
                 </div>
 
                 <div className="flex justify-end gap-3 border-t border-white/70 pt-5">
@@ -878,9 +880,9 @@ export default function PagesManagement() {
                     </span>
                   </div>
                   {viewingPage.slug && (
-                    <span className="mt-1 text-xs text-zinc-500">
+                    <p className="mt-1 text-xs text-zinc-500">
                       Slug: /{viewingPage.slug}
-                    </span>
+                    </p>
                   )}
                 </div>
 
@@ -893,23 +895,24 @@ export default function PagesManagement() {
                 </button>
               </div>
 
-              {/* Inject CSS preview if present */}
-              {viewingPage.css && (
-                <style dangerouslySetInnerHTML={{ __html: viewingPage.css }} />
-              )}
-
               {/* Content Body */}
-              <div className={`pt-6 text-zinc-800 ${styles.typographyContainer}`}>
-                {viewingPage.content ? (
-                  <div
-                    dangerouslySetInnerHTML={{
-                      __html: DOMPurify.sanitize(viewingPage.content),
-                    }}
-                  />
-                ) : (
-                  <p className="italic text-zinc-400">No content available.</p>
-                )}
-              </div>
+              <div
+  className={`page-content-scope pt-6 text-zinc-800 ${styles.typographyContainer}`}
+>
+  <style>
+    {scopePageCss(viewingPage.css ?? "")}
+  </style>
+
+  {viewingPage.content ? (
+    <div
+      dangerouslySetInnerHTML={{
+        __html: DOMPurify.sanitize(viewingPage.content),
+      }}
+    />
+  ) : (
+    <p className="italic text-zinc-400">No content available.</p>
+  )}
+</div>
 
               {/* Footer */}
               <div className="mt-8 flex flex-wrap items-center justify-end gap-2 border-t border-white/70 pt-4">
@@ -1003,35 +1006,34 @@ export default function PagesManagement() {
           </div>
         </div>
       )}
-
       {/* Homepage Management Modal */}
-      {homepageModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-zinc-950/40 px-4 backdrop-blur-sm">
-          <div className="glass-strong w-full max-w-lg rounded-3xl p-6 shadow-xl">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h2 className="text-xl font-semibold text-zinc-900">
-                  Manage Homepage
-                </h2>
+{homepageModalOpen && (
+  <div className="fixed inset-0 z-[100] flex items-center justify-center bg-zinc-950/40 px-4 backdrop-blur-sm">
+    <div className="glass-strong w-full max-w-lg rounded-3xl p-6 shadow-xl">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h2 className="text-xl font-semibold text-zinc-900">
+            Manage Homepage
+          </h2>
 
-                <p className="mt-1 text-sm text-zinc-600">
-                  Select a public page to display at the homepage URL (/).
-                </p>
-              </div>
+          <p className="mt-1 text-sm text-zinc-600">
+            Select a public page to display at the homepage URL (/).
+          </p>
+        </div>
 
-              <button
-                type="button"
-                onClick={() => setHomepageModalOpen(false)}
-                disabled={updatingHomepage}
-                className="rounded-xl p-2 text-zinc-500 transition hover:bg-black/5"
-                aria-label="Close modal"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
+        <button
+          type="button"
+          onClick={() => setHomepageModalOpen(false)}
+          disabled={updatingHomepage}
+          className="rounded-xl p-2 text-zinc-500 transition hover:bg-black/5"
+          aria-label="Close modal"
+        >
+          <X className="h-5 w-5" />
+        </button>
+      </div>
 
-            <div className="mt-6 space-y-4">
-                      {/* <div className="relative">
+      <div className="mt-6 space-y-4">
+        {/* <div className="relative">
           <Search className="absolute left-3 top-3 h-4 w-4 text-zinc-400" />
 
           <input
@@ -1046,89 +1048,89 @@ export default function PagesManagement() {
           />
         </div> */}
 
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-zinc-800">
-                  Select page
-                </label>
+        <div>
+          <label className="mb-1.5 block text-sm font-medium text-zinc-800">
+            Select page
+          </label>
 
-                <select
-                  value={selectedHomepageId}
-                  onChange={(event) =>
-                    setSelectedHomepageId(event.target.value)
-                  }
-                  disabled={loadingHomepagePages || updatingHomepage}
-                  className="w-full rounded-xl border border-zinc-300 bg-white px-3 py-2.5 text-sm outline-none focus:border-zinc-500 focus:ring-2 focus:ring-zinc-200 disabled:bg-zinc-100"
-                >
-                  <option value="">
-                    {loadingHomepagePages
-                      ? "Loading pages..."
-                      : "Select a page"}
-                  </option>
+          <select
+            value={selectedHomepageId}
+            onChange={(event) =>
+              setSelectedHomepageId(event.target.value)
+            }
+            disabled={loadingHomepagePages || updatingHomepage}
+            className="w-full rounded-xl border border-zinc-300 bg-white px-3 py-2.5 text-sm outline-none focus:border-zinc-500 focus:ring-2 focus:ring-zinc-200 disabled:bg-zinc-100"
+          >
+            <option value="">
+              {loadingHomepagePages
+                ? "Loading pages..."
+                : "Select a page"}
+            </option>
 
-                  {filteredHomepagePages.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.title}
-                      {item.isHomepage ? " — Current homepage" : ""}
-                    </option>
-                  ))}
-                </select>
+            {filteredHomepagePages.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.title}
+                {item.isHomepage ? " — Current homepage" : ""}
+              </option>
+            ))}
+          </select>
 
-                {!loadingHomepagePages &&
-                  filteredHomepagePages.length === 0 && (
-                    <p className="mt-2 text-xs text-zinc-500">
-                      No matching public pages found.
-                    </p>
-                  )}
-              </div>
-
-              {currentHomepage && (
-                <div className="rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
-                  Current homepage:{" "}
-                  <span className="font-semibold">
-                    {currentHomepage.title}
-                  </span>
-                </div>
-              )}
-
-              <div className="flex flex-wrap justify-end gap-2 border-t border-white/70 pt-4">
-                <button
-                  type="button"
-                  onClick={() => setHomepageModalOpen(false)}
-                  disabled={updatingHomepage}
-                  className="rounded-xl border border-white/80 bg-white/55 px-4 py-2.5 text-sm font-medium text-zinc-700 hover:bg-white/80 disabled:opacity-50"
-                >
-                  Cancel
-                </button>
-
-                {currentHomepage && (
-                  <button
-                    type="button"
-                    onClick={() => removeHomepage(currentHomepage.id)}
-                    disabled={updatingHomepage}
-                    className="rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-medium text-red-700 hover:bg-red-100 disabled:opacity-50"
-                  >
-                    {updatingHomepage ? "Updating..." : "Remove Homepage"}
-                  </button>
-                )}
-
-                <button
-                  type="button"
-                  onClick={() => setHomepage(selectedHomepageId)}
-                  disabled={
-                    !selectedHomepageId ||
-                    selectedHomepageId === currentHomepage?.id ||
-                    updatingHomepage ||
-                    loadingHomepagePages
-                  }
-                  className="rounded-xl bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {updatingHomepage ? "Updating..." : "Set Homepage"}
-                </button>
-              </div>
-            </div>
-          </div>
+          {!loadingHomepagePages &&
+            filteredHomepagePages.length === 0 && (
+              <p className="mt-2 text-xs text-zinc-500">
+                No matching public pages found.
+              </p>
+            )}
         </div>
-      )}
+
+        {currentHomepage && (
+          <div className="rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
+            Current homepage:{" "}
+            <span className="font-semibold">
+              {currentHomepage.title}
+            </span>
+          </div>
+        )}
+
+        <div className="flex flex-wrap justify-end gap-2 border-t border-white/70 pt-4">
+          <button
+            type="button"
+            onClick={() => setHomepageModalOpen(false)}
+            disabled={updatingHomepage}
+            className="rounded-xl border border-white/80 bg-white/55 px-4 py-2.5 text-sm font-medium text-zinc-700 hover:bg-white/80 disabled:opacity-50"
+          >
+            Cancel
+          </button>
+
+          {currentHomepage && (
+            <button
+              type="button"
+              onClick={() => removeHomepage(currentHomepage.id)}
+              disabled={updatingHomepage}
+              className="rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-medium text-red-700 hover:bg-red-100 disabled:opacity-50"
+            >
+              {updatingHomepage ? "Updating..." : "Remove Homepage"}
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={() => setHomepage(selectedHomepageId)}
+            disabled={
+              !selectedHomepageId ||
+              selectedHomepageId === currentHomepage?.id ||
+              updatingHomepage ||
+              loadingHomepagePages
+            }
+            className="rounded-xl bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {updatingHomepage ? "Updating..." : "Set Homepage"}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+)}
     </>
   );
 }
