@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import styles from "./editor-typography.module.css"; 
 import "../../../styles/page-custom-styles.css"
 import type { Metadata } from "next";
+import { scopePageCss } from "@/lib/scope-page-css";
 type Page = {
   id: string;
   title: string;
@@ -12,6 +13,7 @@ type Page = {
   visibility: "public" | "registered";
   createdAt: string;
   updatedAt: string;
+  css?: string;
 };
 
 type PageResponse = {
@@ -112,11 +114,18 @@ export default async function Page({
         </header>
 
         <div
-          className={`${styles.typographyContainer} mt-8`}
-          dangerouslySetInnerHTML={{
-            __html: page.content,
-          }}
-        />
+  className={`page-content-scope ${styles.typographyContainer} mt-8`}
+>
+  <style>
+    {scopePageCss(page.css ?? "")}
+  </style>
+
+  <div
+    dangerouslySetInnerHTML={{
+      __html: page.content,
+    }}
+  />
+</div>
       </article>
     </main>
   );
