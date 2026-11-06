@@ -20,6 +20,7 @@ import type {
 import styles from "../../app/(website)/[slug]/editor-typography.module.css"
 import "../../styles/page-custom-styles.css"
 import { Home, Search, X } from "lucide-react";
+import { scopePageCss } from "@/lib/scope-page-css";
 // Dynamic import with SSR disabled to prevent hydration errors with TinyMCE
 const PageEditor = dynamic(
   () => import("@/components/pages/page-editor"),
@@ -254,9 +255,20 @@ async function removeHomepage(selectedPageId: string) {
     loadPages();
   }, [page, visibilityFilter]);
 
-  function handleViewPage(selectedPage: Page) {
-    setViewingPage(selectedPage);
+async function handleViewPage(selectedPage: Page) {
+  try {
+    const response = await api.get<{ page: Page }>(
+      `/admin/pages/${selectedPage.id}`,
+    );
+
+    setViewingPage(response.data.page);
+  } catch (error) {
+    showNotification(
+      getErrorMessage(error, "Unable to load page preview."),
+      "error",
+    );
   }
+}
 
   // Opens the live URL in a new browser tab/window
   function handleViewNewPage(selectedPage: Page) {
@@ -884,17 +896,23 @@ const currentHomepage = publicPages.find(
               </div>
 
               {/* Content Body */}
-              <div className={`pt-6 text-zinc-800 ${styles.typographyContainer}`}>
-                {viewingPage.content ? (
-                  <div
-                    dangerouslySetInnerHTML={{
-                      __html: DOMPurify.sanitize(viewingPage.content),
-                    }}
-                  />
-                ) : (
-                  <p className="italic text-zinc-400">No content available.</p>
-                )}
-              </div>
+              <div
+  className={`page-content-scope pt-6 text-zinc-800 ${styles.typographyContainer}`}
+>
+  <style>
+    {scopePageCss(viewingPage.css ?? "")}
+  </style>
+
+  {viewingPage.content ? (
+    <div
+      dangerouslySetInnerHTML={{
+        __html: DOMPurify.sanitize(viewingPage.content),
+      }}
+    />
+  ) : (
+    <p className="italic text-zinc-400">No content available.</p>
+  )}
+</div>
 
               {/* Footer */}
               <div className="mt-8 flex flex-wrap items-center justify-end gap-2 border-t border-white/70 pt-4">
