@@ -41,7 +41,10 @@ export default function PublicPage({
           </header>
 
           <div className="mt-8">
-            <PageContent content={page.content} />
+            <PageContent
+  content={page.content}
+  css={page.css ?? ""}
+/>
           </div>
         </div>
       </article>
