@@ -34,6 +34,18 @@ const PageEditor = dynamic(
   }
 );
 
+const CssEditor = dynamic(
+  () => import("@/components/pages/CssEditor"),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-[240px] items-center justify-center rounded-xl border border-white/80 bg-zinc-900/10 text-sm text-zinc-500">
+        Loading CSS editor...
+      </div>
+    ),
+  }
+);
+
 type PageForm = {
   title: string;
   content: string;
@@ -807,22 +819,20 @@ const currentHomepage = publicPages.find(
     Custom CSS
   </label>
 
-  <textarea
+  <CssEditor
     value={form.css}
-    onChange={(event) =>
+    onChange={(cssValue) =>
       setForm((current) => ({
         ...current,
-        css: event.target.value,
+        css: cssValue,
       }))
     }
-    placeholder="Enter custom CSS..."
-    rows={10}
-    spellCheck={false}
-    className="w-full rounded-xl border border-white/80 bg-white/55 px-4 py-3 font-mono text-sm outline-none backdrop-blur-xl transition focus:border-zinc-300 focus:bg-white/75"
+    height="260px"
+    placeholder="/* Enter custom CSS rules (e.g. p, em, strong) */"
   />
 
   <p className="mt-1 text-xs text-zinc-500">
-    Custom CSS associated with this page.
+    Scoped automatically with class .page-content-scope.
   </p>
 </div>
                 </div>
