@@ -4,6 +4,7 @@ import axios from "axios";
 import DOMPurify from "isomorphic-dompurify";
 import {
   FormEvent,
+  useCallback,
   useEffect,
   useState,
 } from "react";
@@ -104,17 +105,15 @@ export default function PagesManagement() {
 
   const [saving, setSaving] = useState(false);
 
-  const [homepageModalOpen, setHomepageModalOpen] = useState(false);
-
+const [homepageModalOpen, setHomepageModalOpen] = useState(false);
 const [publicPages, setPublicPages] = useState<Page[]>([]);
-
 const [homepageSearch, setHomepageSearch] = useState("");
-
 const [selectedHomepageId, setSelectedHomepageId] = useState("");
-
+const [homepagePage, setHomepagePage] = useState(1);
+const [hasMorePages, setHasMorePages] = useState(true);
 const [loadingHomepagePages, setLoadingHomepagePages] = useState(false);
-
 const [updatingHomepage, setUpdatingHomepage] = useState(false);
+const PAGE_LIMIT = 20;
   // State to track which page is pending confirmation
   const [pageToDelete, setPageToDelete] = useState<Page | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -167,40 +166,88 @@ const [updatingHomepage, setUpdatingHomepage] = useState(false);
     }
   }
 
-async function loadHomepagePages() {
-  setLoadingHomepagePages(true);
+const loadHomepagePages = useCallback(
+  async (searchTerm: string, pageNumber: number, signal?: AbortSignal) => {
+    setLoadingHomepagePages(true);
 
-  try {
-    const allPages: Page[] = [];
-    let currentPage = 1;
-    let lastPage = 1;
-
-    do {
+    try {
       const response = await api.get<PagesResponse>(
-        `/admin/pages?visibility=public&page=${currentPage}&limit=20`,
+        "/admin/pages",
+        {
+          params: {
+            visibility: "public",
+            page: pageNumber,
+            limit: PAGE_LIMIT,
+            ...(searchTerm.trim()
+              ? { search: searchTerm.trim() }
+              : {}),
+          },
+          signal,
+        },
       );
 
-      allPages.push(...(response.data.pages ?? []));
-      lastPage = response.data.pagination?.totalPages ?? 1;
-      currentPage += 1;
-    } while (currentPage <= lastPage);
+      const fetchedPages = response.data.pages ?? [];
+      
+      // Determine if there are more pages to load
+      setHasMorePages(fetchedPages.length === PAGE_LIMIT);
 
-    setPublicPages(allPages);
-  } catch (error) {
-    showNotification(
-      getErrorMessage(error, "Unable to load public pages."),
-      "error",
+      // If page is 1, replace list (new search or modal open). If page > 1, append for "Load More".
+      setPublicPages((prev) =>
+        pageNumber === 1 ? fetchedPages : [...prev, ...fetchedPages]
+      );
+    } catch (error) {
+      if (signal?.aborted || axios.isCancel(error)) {
+        return;
+      }
+
+      showNotification(
+        getErrorMessage(error, "Unable to load public pages."),
+        "error",
+      );
+    } finally {
+      if (!signal?.aborted) {
+        setLoadingHomepagePages(false);
+      }
+    }
+  },
+  [showNotification],
+);
+
+useEffect(() => {
+  if (!homepageModalOpen) return;
+
+  const controller = new AbortController();
+  setHomepagePage(1); // Reset to page 1 on search term change
+
+  const timeout = setTimeout(() => {
+    loadHomepagePages(
+      homepageSearch,
+      1,
+      controller.signal,
     );
-  } finally {
-    setLoadingHomepagePages(false);
-  }
-}
+  }, 400);
 
-async function openHomepageModal() {
+  return () => {
+    clearTimeout(timeout);
+    controller.abort();
+  };
+}, [
+  homepageModalOpen,
+  homepageSearch,
+  loadHomepagePages,
+]);
+
+const handleLoadMore = () => {
+  const nextPage = homepagePage + 1;
+  setHomepagePage(nextPage);
+  loadHomepagePages(homepageSearch, nextPage);
+};
+
+function openHomepageModal() {
   setHomepageModalOpen(true);
   setHomepageSearch("");
-
-  await loadHomepagePages();
+  setSelectedHomepageId("");
+  setHomepagePage(1);
 }
 
 async function setHomepage(selectedPageId: string) {
@@ -222,7 +269,8 @@ async function setHomepage(selectedPageId: string) {
     );
 
     await loadPages();
-    await loadHomepagePages();
+    // Refreshes the list so the "Current" badge updates inside the modal immediately
+    await loadHomepagePages(homepageSearch, homepagePage); 
   } catch (error) {
     showNotification(
       getErrorMessage(error, "Unable to assign homepage."),
@@ -252,7 +300,8 @@ async function removeHomepage(selectedPageId: string) {
     );
 
     await loadPages();
-    await loadHomepagePages();
+    // Refreshes the list so the "Current" badge clears inside the modal immediately
+    await loadHomepagePages(homepageSearch, homepagePage);
   } catch (error) {
     showNotification(
       getErrorMessage(error, "Unable to remove homepage."),
@@ -484,12 +533,6 @@ function openCreate() {
         .includes(query)
     );
   });
-
-  const filteredHomepagePages: Page[] = publicPages.filter((item) =>
-  item.title
-    .toLowerCase()
-    .includes(homepageSearch.trim().toLowerCase()),
-);
 
 const currentHomepage = publicPages.find(
   (item) => item.isHomepage,
@@ -1027,7 +1070,7 @@ const currentHomepage = publicPages.find(
           </h2>
 
           <p className="mt-1 text-sm text-zinc-600">
-            Select a public page to display at the homepage URL (/).
+            Search or select a public page to display at the homepage URL (/).
           </p>
         </div>
 
@@ -1043,7 +1086,8 @@ const currentHomepage = publicPages.find(
       </div>
 
       <div className="mt-6 space-y-4">
-        {/* <div className="relative">
+        {/* Unified Search Input */}
+        <div className="relative">
           <Search className="absolute left-3 top-3 h-4 w-4 text-zinc-400" />
 
           <input
@@ -1051,57 +1095,90 @@ const currentHomepage = publicPages.find(
             value={homepageSearch}
             onChange={(event) => {
               setHomepageSearch(event.target.value);
-              setSelectedHomepageId("");
             }}
-            placeholder="Search pages by title..."
+            placeholder="Search pages by title or slug..."
             className="w-full rounded-xl border border-zinc-300 bg-white/80 py-2.5 pl-10 pr-3 text-sm outline-none focus:border-zinc-500 focus:ring-2 focus:ring-zinc-200"
           />
-        </div> */}
+        </div>
 
+        {/* Custom Scrollable List with Load More */}
         <div>
           <label className="mb-1.5 block text-sm font-medium text-zinc-800">
             Select page
           </label>
 
-          <select
-            value={selectedHomepageId}
-            onChange={(event) =>
-              setSelectedHomepageId(event.target.value)
-            }
-            disabled={loadingHomepagePages || updatingHomepage}
-            className="w-full rounded-xl border border-zinc-300 bg-white px-3 py-2.5 text-sm outline-none focus:border-zinc-500 focus:ring-2 focus:ring-zinc-200 disabled:bg-zinc-100"
-          >
-            <option value="">
-              {loadingHomepagePages
-                ? "Loading pages..."
-                : "Select a page"}
-            </option>
-
-            {filteredHomepagePages.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.title}
-                {item.isHomepage ? " — Current homepage" : ""}
-              </option>
-            ))}
-          </select>
-
-          {!loadingHomepagePages &&
-            filteredHomepagePages.length === 0 && (
-              <p className="mt-2 text-xs text-zinc-500">
+          <div className="max-h-60 overflow-y-auto rounded-xl border border-zinc-300 bg-white p-1 shadow-inner space-y-1">
+            {loadingHomepagePages && publicPages.length === 0 ? (
+              <div className="py-6 text-center text-sm text-zinc-500">
+                Loading pages...
+              </div>
+            ) : publicPages.length === 0 ? (
+              <div className="py-6 text-center text-sm text-zinc-500">
                 No matching public pages found.
-              </p>
+              </div>
+            ) : (
+              <>
+                {publicPages.map((item) => {
+                  const isSelected = selectedHomepageId === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => setSelectedHomepageId(item.id)}
+                      className={`w-full flex items-center justify-between px-3 py-2.5 text-left text-sm rounded-lg transition ${
+                        isSelected
+                          ? "bg-zinc-900 text-white font-medium"
+                          : "hover:bg-zinc-100 text-zinc-800"
+                      }`}
+                    >
+                      <div className="truncate pr-2">
+                        <span>{item.title}</span>
+                        {item.slug && (
+                          <span className={`block text-xs ${isSelected ? "text-zinc-300" : "text-zinc-400"}`}>
+                            /{item.slug}
+                          </span>
+                        )}
+                      </div>
+
+                      {item.isHomepage && (
+                        <span className={`text-xs px-2 py-0.5 rounded-full shrink-0 ${
+                          isSelected ? "bg-zinc-800 text-zinc-200" : "bg-blue-50 text-blue-700 border border-blue-200"
+                        }`}>
+                          Current
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+
+                {/* Load More Button inside list */}
+                {hasMorePages && (
+                  <div className="pt-2 pb-1 text-center border-t border-zinc-100 mt-1">
+                    <button
+                      type="button"
+                      onClick={handleLoadMore}
+                      disabled={loadingHomepagePages}
+                      className="text-xs font-medium text-zinc-600 hover:text-zinc-900 py-1.5 px-3 rounded-lg hover:bg-zinc-100 transition disabled:opacity-50"
+                    >
+                      {loadingHomepagePages ? "Loading..." : "Load More Pages"}
+                    </button>
+                  </div>
+                )}
+              </>
             )}
+          </div>
         </div>
 
         {currentHomepage && (
           <div className="rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
-            Current homepage:{" "}
+            Current active homepage:{" "}
             <span className="font-semibold">
               {currentHomepage.title}
             </span>
           </div>
         )}
 
+        {/* Action Buttons */}
         <div className="flex flex-wrap justify-end gap-2 border-t border-white/70 pt-4">
           <button
             type="button"
@@ -1144,4 +1221,3 @@ const currentHomepage = publicPages.find(
     </>
   );
 }
-
